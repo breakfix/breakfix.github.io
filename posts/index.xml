@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on breakfix.co</title>
+    <link>https://breakfix.co/posts/</link>
+    <description>Recent content in Posts on breakfix.co</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 30 Jan 2021 19:58:57 +1100</lastBuildDate><atom:link href="https://breakfix.co/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Apache Struts2 OGNL Console and devMode exploitation</title>
+      <link>https://breakfix.co/posts/apache-struts2-ognl-console-and-devmode-exploitation/</link>
+      <pubDate>Sat, 30 Jan 2021 19:58:57 +1100</pubDate>
+      
+      <guid>https://breakfix.co/posts/apache-struts2-ognl-console-and-devmode-exploitation/</guid>
+      <description>During a recent web application pentest of an application built with Apache Struts 2, I stumbled across an interesting error message while running some scans with Burp Intruder.
+You are seeing this page because development mode is enabled. Development mode, or devMode, enables extra debugging behaviors and reports to assist developers. To disable this mode, set: &amp;lt;pre&amp;gt; struts.devMode=false &amp;lt;/pre&amp;gt; in your &amp;lt;code&amp;gt;WEB-INF/classes/struts.properties&amp;lt;/code&amp;gt; file. After some quick Googling, I found this blog post which suggested the target Struts 2 application was running in &amp;ldquo;Development Mode&amp;rdquo; (or devMode).</description>
+    </item>
+    
+  </channel>
+</rss>
