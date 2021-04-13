@@ -6,7 +6,18 @@
     <description>Recent content in Posts on breakfix.co</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Tue, 13 Apr 2021 19:58:57 +1100</lastBuildDate><atom:link href="https://breakfix.co/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 14 Apr 2021 07:58:57 +1100</lastBuildDate><atom:link href="https://breakfix.co/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Airstrike Attack - FDE bypass and EoP on domain joined Windows workstations (CVE 2021-28316)</title>
+      <link>https://breakfix.co/posts/airstrike-attack-cve-2021-28316/</link>
+      <pubDate>Wed, 14 Apr 2021 07:58:57 +1100</pubDate>
+      
+      <guid>https://breakfix.co/posts/airstrike-attack-cve-2021-28316/</guid>
+      <description>Summary By default, domain joined Windows workstations allow access to the network selection UI from the lock screen.
+An attacker with physical access to a locked device with WiFI capabilities (such as a laptop or a workstation) can abuse this functionality to force the laptop to authenticate against a rogue access point and capture a MSCHAPV2 challenge response hash for the domain computer account.
+This challenge response hash can then be submitted to crack.</description>
+    </item>
+    
     <item>
       <title>Apache Struts2 OGNL Console and devMode exploitation</title>
       <link>https://breakfix.co/posts/apache-struts2-ognl-console-and-devmode-exploitation/</link>
