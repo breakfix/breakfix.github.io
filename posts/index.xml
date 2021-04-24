@@ -13,9 +13,8 @@
       <pubDate>Wed, 14 Apr 2021 07:58:57 +1100</pubDate>
       
       <guid>https://breakfix.co/posts/airstrike-attack-cve-2021-28316/</guid>
-      <description>Summary By default, domain joined Windows workstations allow access to the network selection UI from the lock screen.
-An attacker with physical access to a locked device with WiFI capabilities (such as a laptop or a workstation) can abuse this functionality to force the laptop to authenticate against a rogue access point and capture a MSCHAPV2 challenge response hash for the domain computer account.
-This challenge response hash can then be submitted to crack.</description>
+      <description>There should have been a video here but your browser does not seem to support it.  Summary By default, domain joined Windows workstations allow access to the network selection UI from the lock screen.
+An attacker with physical access to a locked device with WiFI capabilities (such as a laptop or a workstation) can abuse this functionality to force the laptop to authenticate against a rogue access point and capture a MSCHAPV2 challenge response hash for the domain computer account.</description>
     </item>
     
     <item>
