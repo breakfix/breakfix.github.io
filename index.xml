@@ -6,7 +6,27 @@
     <description>Recent content on breakfix.co</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 14 Apr 2021 07:58:57 +1100</lastBuildDate><atom:link href="https://breakfix.co/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 03 Dec 2024 19:58:57 +1100</lastBuildDate><atom:link href="https://breakfix.co/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Extracting Account Connectivity Credentials (ACCs) from Symantec Management Agent (aka Altiris)</title>
+      <link>https://breakfix.co/posts/extracting-account-connectivity-credentials-accs/</link>
+      <pubDate>Tue, 03 Dec 2024 19:58:57 +1100</pubDate>
+      
+      <guid>https://breakfix.co/posts/extracting-account-connectivity-credentials-accs/</guid>
+      <description>Introduction On a recent Red Team for a particularly hardened client, we were looking to escalate our privileges in order to move off the endpoint and pivot into the server subnets. When none of the usual paths bore fruit, we began to look into the management software installed on the endpoint, specifically Symantec Management Agent (previously known as &amp;ldquo;Altiris&amp;rdquo;). Indeed this was something we had run into before and were keen to see what could be done from a privilege escalation perspective.</description>
+    </item>
+    
+    <item>
+      <title>Leveraging VSCode Extensions for Initial Access</title>
+      <link>https://breakfix.co/posts/leveraging-vscode-extensions-for-initial-access/</link>
+      <pubDate>Tue, 01 Aug 2023 19:58:57 +1100</pubDate>
+      
+      <guid>https://breakfix.co/posts/leveraging-vscode-extensions-for-initial-access/</guid>
+      <description>Introduction On a recent Red Team engagement, MDSec were tasked with crafting a phishing campaign for initial access. The catch was that the in-scope phishing targets were developers with technical skills above that of the average user.
+As a result, they were unlikely to fall for typical payloads and pre-texts. Rather than relying on traditional initial access payloads, why not use their own development tools to our advantage ?
+Mapping the attack surface One of the main development applications used by the target organisation was VSCode.</description>
+    </item>
+    
     <item>
       <title>Airstrike Attack - FDE bypass and EoP on domain joined Windows workstations (CVE 2021-28316)</title>
       <link>https://breakfix.co/posts/airstrike-attack-cve-2021-28316/</link>

