@@ -1,48 +1,32 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  
   <url>
     <loc>https://breakfix.co/</loc>
-    <lastmod>2024-12-03T19:58:57+11:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
+    <lastmod>2025-12-27T07:58:57+11:00</lastmod>
+  </url><url>
+    <loc>https://breakfix.co/posts/</loc>
+    <lastmod>2025-12-27T07:58:57+11:00</lastmod>
+  </url><url>
+    <loc>https://breakfix.co/posts/scommand-and-conquer---attacking-system-center-operations-manager/</loc>
+    <lastmod>2025-12-27T07:58:57+11:00</lastmod>
+  </url><url>
     <loc>https://breakfix.co/posts/extracting-account-connectivity-credentials-accs/</loc>
     <lastmod>2024-12-03T19:58:57+11:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://breakfix.co/posts/</loc>
-    <lastmod>2024-12-03T19:58:57+11:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://breakfix.co/posts/leveraging-vscode-extensions-for-initial-access/</loc>
     <lastmod>2023-08-01T19:58:57+11:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://breakfix.co/posts/airstrike-attack-cve-2021-28316/</loc>
     <lastmod>2021-04-14T07:58:57+11:00</lastmod>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://breakfix.co/posts/apache-struts2-ognl-console-and-devmode-exploitation/</loc>
     <lastmod>2021-01-30T19:58:57+11:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://breakfix.co/about/</loc>
-  </url>
-  
-  <url>
+  </url><url>
+    <loc>https://breakfix.co/contact/</loc>
+  </url><url>
     <loc>https://breakfix.co/categories/</loc>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://breakfix.co/tags/</loc>
   </url>
-  
 </urlset>

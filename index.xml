@@ -1,61 +1,87 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>breakfix.co</title>
+    <title> </title>
     <link>https://breakfix.co/</link>
-    <description>Recent content on breakfix.co</description>
-    <generator>Hugo -- gohugo.io</generator>
-    <language>en-us</language>
-    <lastBuildDate>Tue, 03 Dec 2024 19:58:57 +1100</lastBuildDate><atom:link href="https://breakfix.co/index.xml" rel="self" type="application/rss+xml" />
+    <description>Recent content on  </description>
+    <image>
+      <title> </title>
+      <url>https://breakfix.co/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</url>
+      <link>https://breakfix.co/%3Clink%20or%20path%20of%20image%20for%20opengraph,%20twitter-cards%3E</link>
+    </image>
+    <generator>Hugo -- 0.153.2</generator>
+    <language>en</language>
+    <lastBuildDate>Sat, 27 Dec 2025 07:58:57 +1100</lastBuildDate>
+    <atom:link href="https://breakfix.co/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>SCOMmand And Conquer - Attacking System Center Operations Manager</title>
+      <link>https://breakfix.co/posts/scommand-and-conquer---attacking-system-center-operations-manager/</link>
+      <pubDate>Sat, 27 Dec 2025 07:58:57 +1100</pubDate>
+      <guid>https://breakfix.co/posts/scommand-and-conquer---attacking-system-center-operations-manager/</guid>
+      <description>&lt;h3 id=&#34;introduction&#34;&gt;Introduction&lt;/h3&gt;
+&lt;p&gt;With many enterprise management solutions, a key weakness lies in securing credential material sent to endpoints. As the endpoint requires access to the cleartext credentials in order to use them, attackers can leverage this same process to gain access also.&lt;/p&gt;
+&lt;p&gt;Additionally, there is often an implicit trust granted to enrolled devices. If we can enroll our own device, we can potentially access sensitive data that would otherwise be unavailable. Such attacks already exist in other management products (such as &lt;a href=&#34;https://github.com/subat0mik/Misconfiguration-Manager/blob/b23b3130ff1050519965f1bed54b577ab12eaec2/attack-techniques/CRED/CRED-2/cred-2_description.md&#34;&gt;SCCM&lt;/a&gt; and &lt;a href=&#34;https://www.mdsec.co.uk/2024/12/extracting-account-connectivity-credentials-accs-from-symantec-management-agent-aka-altiris/&#34;&gt;Symantec Management Agent&lt;/a&gt;)).&lt;/p&gt;</description>
+    </item>
     <item>
       <title>Extracting Account Connectivity Credentials (ACCs) from Symantec Management Agent (aka Altiris)</title>
       <link>https://breakfix.co/posts/extracting-account-connectivity-credentials-accs/</link>
       <pubDate>Tue, 03 Dec 2024 19:58:57 +1100</pubDate>
-      
       <guid>https://breakfix.co/posts/extracting-account-connectivity-credentials-accs/</guid>
-      <description>Introduction On a recent Red Team for a particularly hardened client, we were looking to escalate our privileges in order to move off the endpoint and pivot into the server subnets. When none of the usual paths bore fruit, we began to look into the management software installed on the endpoint, specifically Symantec Management Agent (previously known as &amp;ldquo;Altiris&amp;rdquo;). Indeed this was something we had run into before and were keen to see what could be done from a privilege escalation perspective.</description>
+      <description>&lt;h3 id=&#34;introduction&#34;&gt;Introduction&lt;/h3&gt;
+&lt;p&gt;On a recent Red Team for a particularly hardened client, we were looking to escalate our privileges in order to move off the endpoint and pivot into the server subnets. When none of the usual paths bore fruit, we began to look into the management software installed on the endpoint, specifically Symantec Management Agent (previously known as &amp;ldquo;Altiris&amp;rdquo;). Indeed this was something we had run into &lt;a href=&#34;https://www.mdsec.co.uk/2022/07/altiris-methods-for-lateral-movement/&#34;&gt;before&lt;/a&gt; and were keen to see what could be done from a privilege escalation perspective.&lt;/p&gt;</description>
     </item>
-    
     <item>
       <title>Leveraging VSCode Extensions for Initial Access</title>
       <link>https://breakfix.co/posts/leveraging-vscode-extensions-for-initial-access/</link>
       <pubDate>Tue, 01 Aug 2023 19:58:57 +1100</pubDate>
-      
       <guid>https://breakfix.co/posts/leveraging-vscode-extensions-for-initial-access/</guid>
-      <description>Introduction On a recent Red Team engagement, MDSec were tasked with crafting a phishing campaign for initial access. The catch was that the in-scope phishing targets were developers with technical skills above that of the average user.
-As a result, they were unlikely to fall for typical payloads and pre-texts. Rather than relying on traditional initial access payloads, why not use their own development tools to our advantage ?
-Mapping the attack surface One of the main development applications used by the target organisation was VSCode.</description>
+      <description>&lt;h3 id=&#34;introduction&#34;&gt;Introduction&lt;/h3&gt;
+&lt;p&gt;On a recent Red Team engagement, MDSec were tasked with crafting a phishing campaign for initial access. The catch was that the in-scope phishing targets were developers with technical skills above that of the average user.&lt;/p&gt;
+&lt;p&gt;As a result, they were unlikely to fall for typical payloads and pre-texts. Rather than relying on traditional initial access payloads, why not use their own development tools to our advantage ?&lt;/p&gt;
+&lt;h3 id=&#34;mapping-the-attack-surface&#34;&gt;Mapping the attack surface&lt;/h3&gt;
+&lt;p&gt;One of the main development applications used by the target organisation was VSCode. The ability to install custom VSCode extensions makes this an ideal target and is something we have previously &lt;a href=&#34;https://www.mdsec.co.uk/2021/01/macos-post-exploitation-shenanigans-with-vscode-extensions/&#34;&gt;talked about&lt;/a&gt;.&lt;/p&gt;</description>
     </item>
-    
     <item>
       <title>Airstrike Attack - FDE bypass and EoP on domain joined Windows workstations (CVE 2021-28316)</title>
       <link>https://breakfix.co/posts/airstrike-attack-cve-2021-28316/</link>
       <pubDate>Wed, 14 Apr 2021 07:58:57 +1100</pubDate>
-      
       <guid>https://breakfix.co/posts/airstrike-attack-cve-2021-28316/</guid>
-      <description>There should have been a video here but your browser does not seem to support it.  Summary By default, domain joined Windows workstations allow access to the network selection UI from the lock screen.
-An attacker with physical access to a locked device with WiFI capabilities (such as a laptop or a workstation) can abuse this functionality to force the laptop to authenticate against a rogue access point and capture a MSCHAPV2 challenge response hash for the domain computer account.</description>
+      <description>&lt;video width=&#34;640&#34; height=&#34;360&#34; class=&#34;video-shortcode&#34; preload=&#34;auto&#34; controls&gt;
+    &lt;source src=&#34;https://breakfix.co/airstrike/airstrike.mp4&#34; type=&#34;video/mp4&#34;&gt;
+    There should have been a video here but your browser does not seem
+    to support it.
+&lt;/video&gt;
+
+&lt;h3 id=&#34;summary&#34;&gt;Summary&lt;/h3&gt;
+&lt;p&gt;By default, domain joined Windows workstations allow access to the network selection UI from the lock screen.&lt;/p&gt;
+&lt;p&gt;An attacker with physical access to a locked device with WiFI capabilities (such as a laptop or a workstation) can abuse this functionality to force the laptop to authenticate against a rogue access point and capture a MSCHAPV2 challenge response hash for the domain computer account.&lt;/p&gt;</description>
     </item>
-    
     <item>
       <title>Apache Struts2 OGNL Console and devMode exploitation</title>
       <link>https://breakfix.co/posts/apache-struts2-ognl-console-and-devmode-exploitation/</link>
       <pubDate>Sat, 30 Jan 2021 19:58:57 +1100</pubDate>
-      
       <guid>https://breakfix.co/posts/apache-struts2-ognl-console-and-devmode-exploitation/</guid>
-      <description>During a recent web application pentest of an application built with Apache Struts 2, I stumbled across an interesting error message while running some scans with Burp Intruder.
-You are seeing this page because development mode is enabled. Development mode, or devMode, enables extra debugging behaviors and reports to assist developers. To disable this mode, set: &amp;lt;pre&amp;gt; struts.devMode=false &amp;lt;/pre&amp;gt; in your &amp;lt;code&amp;gt;WEB-INF/classes/struts.properties&amp;lt;/code&amp;gt; file. After some quick Googling, I found this blog post which suggested the target Struts 2 application was running in &amp;ldquo;Development Mode&amp;rdquo; (or devMode).</description>
+      <description>&lt;h3 id=&#34;introduction&#34;&gt;Introduction&lt;/h3&gt;
+&lt;p&gt;During a recent web application pentest of an application built with Apache Struts 2, I stumbled across an interesting error message while running some scans with Burp Intruder.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-html&#34; data-lang=&#34;html&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	You are seeing this page because development mode is enabled.  Development mode, or devMode, enables extra
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	debugging behaviors and reports to assist developers.  To disable this mode, set:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;pre&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	struts.devMode=false
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	&lt;span class=&#34;p&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;pre&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;&amp;gt;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;	in your &lt;span class=&#34;p&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;code&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;&amp;gt;&lt;/span&gt;WEB-INF/classes/struts.properties&lt;span class=&#34;p&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;nt&#34;&gt;code&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;&amp;gt;&lt;/span&gt; file.
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;After some quick Googling, I found &lt;a href=&#34;https://www.pwntester.com/blog/2014/01/21/struts-2-devmode-an-ognl-backdoor/&#34;&gt;this blog post&lt;/a&gt; which suggested the target Struts 2 application was running in &amp;ldquo;Development Mode&amp;rdquo; (or &lt;code&gt;devMode&lt;/code&gt;).&lt;/p&gt;</description>
     </item>
-    
     <item>
-      <title>About</title>
-      <link>https://breakfix.co/about/</link>
+      <title></title>
+      <link>https://breakfix.co/contact/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>https://breakfix.co/about/</guid>
-      <description>Security Consultant working in Sydney Australia.
- @breakfix Github LinkedIn Email  </description>
+      <guid>https://breakfix.co/contact/</guid>
+      <description>&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://twitter.com/breakfix&#34;&gt;@breakfix&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/breakfix&#34;&gt;Github&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.linkedin.com/in/matthew-johnson-84918a191/&#34;&gt;LinkedIn&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;mailto:breakfix.co@gmail.com&#34;&gt;Email&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</description>
     </item>
-    
   </channel>
 </rss>
